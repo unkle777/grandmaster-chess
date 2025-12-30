@@ -1,0 +1,29 @@
+PODS:
+  - Flutter (1.0.0)
+  - path_provider_foundation (0.0.1):
+    - Flutter
+    - FlutterMacOS
+  - stockfish_flutter_plus (1.0.1):
+    - Flutter
+
+DEPENDENCIES:
+  - Flutter (from `Flutter`)
+  - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
+  - stockfish_flutter_plus (from `.symlinks/plugins/stockfish_flutter_plus/ios`)
+
+EXTERNAL SOURCES:
+  Flutter:
+    :path: Flutter
+  path_provider_foundation:
+    :path: ".symlinks/plugins/path_provider_foundation/darwin"
+  stockfish_flutter_plus:
+    :path: ".symlinks/plugins/stockfish_flutter_plus/ios"
+
+SPEC CHECKSUMS:
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  path_provider_foundation: bb55f6dbba17d0dccd6737fe6f7f34fbd0376880
+  stockfish_flutter_plus: 61655f00de90fcef182f22a3aa84b0cefe869a43
+
+PODFILE CHECKSUM: 3e679c0a196d4d175cf4f8ac75f8bfba35d06bba
+
+COCOAPODS: 1.16.2
