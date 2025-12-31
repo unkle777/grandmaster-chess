@@ -135,7 +135,18 @@ class CustomBoard extends StatelessWidget {
         return Row(
           children: List.generate(8, (col) {
             final fileIndex = isWhiteBottom ? col : 7 - col;
-            final piece = board[row][col];
+            
+            // Correctly map row/col to board logical indices if flipped
+            final pieceRow = row; // FEN data is already top-to-bottom. 
+            // WAIT! If !isWhiteBottom, we are drawing from H1 (TopLeft) to A8 (BottomRight)?
+            // NO! If !isWhiteBottom (Black View):
+            // Row 0 is Rank 1. FEN starts at Rank 8. 
+            // So Row 0 (Screen Top) needs Rank 1 (Board Index 7).
+            
+            final logicalRowIndex = isWhiteBottom ? row : 7 - row;
+            final logicalColIndex = isWhiteBottom ? col : 7 - col;
+            
+            final piece = board[logicalRowIndex][logicalColIndex];
             final squareName = _getAlgebraic(fileIndex, rankIndex);
             
             if (piece == null) return SizedBox(width: squareSize, height: squareSize);
