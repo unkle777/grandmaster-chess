@@ -31,6 +31,7 @@ class CustomBoard extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        print("DEBUG: CustomBoard LayoutBuilder Constraints: $constraints");
         final squareSize = constraints.maxWidth / 8;
 
         return SizedBox(
