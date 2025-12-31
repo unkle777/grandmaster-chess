@@ -7,7 +7,7 @@ class CustomBoard extends StatelessWidget {
   final String fen;
   final bool isWhiteBottom;
   final Function(String source, String target) onMove;
-  final bool isAiWhite; // Kept for API compatibility but unused for rendering now
+  final bool isAiWhite; 
   final bool isAiBlack;
   final String? lastMove;
   final bool isLocked;
@@ -36,14 +36,80 @@ class CustomBoard extends StatelessWidget {
         return SizedBox(
           width: constraints.maxWidth,
           height: constraints.maxWidth,
-          child: Stack(
-            children: [
-              _buildSquares(squareSize),
-              _buildPieces(board, squareSize),
-            ],
-          ),
+          child: _buildBoardGrid(board, squareSize),
         );
       },
+    );
+  }
+
+  // Merged grid builder
+  Widget _buildBoardGrid(List<List<chess_pkg.Piece?>> board, double squareSize) {
+    return Column(
+      children: List.generate(8, (row) {
+        return Row(
+          children: List.generate(8, (col) {
+            // Coordinate Logic
+            final rankIndex = isWhiteBottom ? 7 - row : row;
+            final fileIndex = isWhiteBottom ? col : 7 - col;
+            final squareName = _getAlgebraic(fileIndex, rankIndex);
+            
+            // Background Color
+            final isLight = (rankIndex + fileIndex) % 2 != 0;
+            final bgColor = isLight ? ChessTheme.boardLight : ChessTheme.boardDark;
+
+            // Piece Logic
+            // Map visual row/col to board data
+            // If !isWhiteBottom (Flipped), visual Row 0 is Rank 1 (Index 7).
+            // Visual Col 0 is File H (Index 7).
+            final logicalRowIndex = isWhiteBottom ? row : 7 - row;
+            final logicalColIndex = isWhiteBottom ? col : 7 - col;
+            final piece = board[logicalRowIndex][logicalColIndex];
+            
+            return Container(
+              width: squareSize,
+              height: squareSize,
+              color: bgColor,
+              child: DragTarget<String>(
+                onWillAccept: (data) => !isLocked,
+                onAccept: (sourceSquare) {
+                  if (sourceSquare != squareName) {
+                    onMove(sourceSquare, squareName);
+                  }
+                },
+                builder: (context, candidateData, rejectedData) {
+                  // Highlight on drag hover
+                  Widget? content = _buildPieceWidget(piece, squareName, squareSize);
+                  
+                  if (candidateData.isNotEmpty) {
+                     return Stack(
+                       children: [
+                         if (content != null) content,
+                         Container(color: ChessTheme.trafficOrange.withOpacity(0.5)),
+                       ],
+                     );
+                  }
+                  return content ?? const SizedBox();
+                },
+              ),
+            );
+          }),
+        );
+      }),
+    );
+  }
+  
+  Widget? _buildPieceWidget(chess_pkg.Piece? piece, String squareName, double size) {
+    if (piece == null) return null;
+    
+    final child = _buildPieceSvg(piece, size);
+    
+    if (isLocked) return SizedBox(width: size, height: size, child: child);
+    
+    return Draggable<String>(
+      data: squareName,
+      feedback: SizedBox(width: size, height: size, child: child),
+      childWhenDragging: SizedBox(width: size, height: size, child: Opacity(opacity: 0.2, child: child)),
+      child: SizedBox(width: size, height: size, child: child),
     );
   }
 
@@ -59,7 +125,6 @@ class CustomBoard extends StatelessWidget {
     final parts = effectiveFen.split(' ');
     final rows = parts[0].split('/');
     
-    // Safety check for invalid FEN
     if (rows.length != 8) return board;
     
     for (int r = 0; r < 8; r++) {
@@ -90,88 +155,8 @@ class CustomBoard extends StatelessWidget {
       default: return chess_pkg.PieceType.PAWN;
     }
   }
-
-  Widget _buildSquares(double squareSize) {
-    return Column(
-      children: List.generate(8, (row) {
-        final rankIndex = isWhiteBottom ? 7 - row : row;
-        return Row(
-          children: List.generate(8, (col) {
-            final fileIndex = isWhiteBottom ? col : 7 - col;
-            final isLight = (rankIndex + fileIndex) % 2 != 0; 
-            
-            return Container(
-              width: squareSize,
-              height: squareSize,
-              color: isLight ? ChessTheme.boardLight : ChessTheme.boardDark,
-              child: DragTarget<String>(
-                onWillAccept: (data) => !isLocked,
-                onAccept: (sourceSquare) {
-                  final targetSquare = _getAlgebraic(fileIndex, rankIndex);
-                  if (sourceSquare != targetSquare) {
-                    onMove(sourceSquare, targetSquare);
-                  }
-                },
-                builder: (context, candidateData, rejectedData) {
-                  return Container(
-                    decoration: candidateData.isNotEmpty 
-                      ? BoxDecoration(color: ChessTheme.trafficOrange.withOpacity(0.5)) 
-                      : null,
-                  );
-                },
-              ),
-            );
-          }),
-        );
-      }),
-    );
-  }
-
-  Widget _buildPieces(List<List<chess_pkg.Piece?>> board, double squareSize) {
-    return Column(
-      children: List.generate(8, (row) {
-        final rankIndex = isWhiteBottom ? 7 - row : row; 
-        
-        return Row(
-          children: List.generate(8, (col) {
-            final fileIndex = isWhiteBottom ? col : 7 - col;
-            
-            // Correctly map row/col to board logical indices if flipped
-            final pieceRow = row; // FEN data is already top-to-bottom. 
-            // WAIT! If !isWhiteBottom, we are drawing from H1 (TopLeft) to A8 (BottomRight)?
-            // NO! If !isWhiteBottom (Black View):
-            // Row 0 is Rank 1. FEN starts at Rank 8. 
-            // So Row 0 (Screen Top) needs Rank 1 (Board Index 7).
-            
-            final logicalRowIndex = isWhiteBottom ? row : 7 - row;
-            final logicalColIndex = isWhiteBottom ? col : 7 - col;
-            
-            final piece = board[logicalRowIndex][logicalColIndex];
-            final squareName = _getAlgebraic(fileIndex, rankIndex);
-            
-            if (piece == null) return SizedBox(width: squareSize, height: squareSize);
-
-            // Active highlighting via square color is simpler, but if we want piece highlight, we can add it here.
-            // For standard pieces, we usually just highlight the square (handled in _buildSquares or separate layer).
-            
-            final child = _buildPieceSvg(piece, squareSize);
-            
-            if (isLocked) return SizedBox(width: squareSize, height: squareSize, child: child);
-
-            return Draggable<String>(
-              data: squareName,
-              feedback: SizedBox(width: squareSize, height: squareSize, child: child),
-              childWhenDragging: SizedBox(width: squareSize, height: squareSize), 
-              child: SizedBox(width: squareSize, height: squareSize, child: child),
-            );
-          }),
-        );
-      }),
-    );
-  }
   
   Widget _buildPieceSvg(chess_pkg.Piece piece, double size) {
-    // Assets: wP.svg, bK.svg etc.
     final colorPrefix = piece.color == chess_pkg.Color.WHITE ? 'w' : 'b';
     final typeSuffix = _getTypeSuffix(piece.type);
     final assetPath = "assets/images/pieces/$colorPrefix$typeSuffix.svg";
