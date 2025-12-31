@@ -14,9 +14,25 @@ class GameScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    print("DEBUG: GameScreen Build");
+    print("DEBUG: GameScreen Build (Simple)");
+    // Temporary simplification to isolate crash
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(
+        child: Text(
+          "DEEP CHESS\nSAFE MODE",
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.white, fontSize: 24),
+        ),
+      ),
+    );
+  }
+
+  // Original UI commented out below for restoration
+  /*
     final gameState = ref.watch(gameProvider);
     final gameNotifier = ref.read(gameProvider.notifier);
+    // ... rest of build ...
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
