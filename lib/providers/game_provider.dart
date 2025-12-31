@@ -317,9 +317,10 @@ class GameNotifier extends StateNotifier<GameState> {
       if (bestMove != null && bestMove.isNotEmpty && mounted) {
         final from = bestMove.substring(0, 2);
         final to = bestMove.substring(2, 4);
+        final promo = bestMove.length > 4 ? bestMove.substring(4, 5) : null;
         
         try {
-          _boardController.makeMove(from: from, to: to);
+          _boardController.makeMove(from: from, to: to, promotion: promo);
         } catch (e) {
           // If move fails (illegal?), force game over or stop
           print('Make move failed: $e');
@@ -347,8 +348,11 @@ class GameNotifier extends StateNotifier<GameState> {
         );
         _checkGameOver();
         
-        final moveSan = _boardController.getSan().last;
-        _playMoveSound(moveSan ?? '');
+        final history = _boardController.getSan();
+        if (history.isNotEmpty) {
+           final moveSan = history.last;
+           _playMoveSound(moveSan ?? '');
+        }
         
         // If AI vs AI, trigger next move
         if (state.gameMode == GameMode.aiVsAi && !state.isGameOver) {
