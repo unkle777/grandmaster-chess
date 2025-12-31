@@ -377,7 +377,12 @@ class GameNotifier extends StateNotifier<GameState> {
     if (!state.isUserTurn || state.isGameOver) return;
 
     // 1. Make User Move
-    _boardController.makeMoveWithNormalNotation(move);
+    try {
+      _boardController.makeMoveWithNormalNotation(move);
+    } catch (e) {
+      print('Human move failed or rejected: $e');
+      return; // Stop if move is invalid
+    }
     
     int legalMoves = 0;
     try {
