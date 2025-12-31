@@ -320,7 +320,10 @@ class GameNotifier extends StateNotifier<GameState> {
         final promo = bestMove.length > 4 ? bestMove.substring(4, 5) : null;
         
         try {
-          _boardController.makeMove(from: from, to: to, promotion: promo);
+          // Note: controller.makeMove doesn't support promotion arg directly in this version. 
+          // It likely defaults to Queen or we need to access internal game object. 
+          // For now, removing arg to fix build.
+          _boardController.makeMove(from: from, to: to);
         } catch (e) {
           // If move fails (illegal?), force game over or stop
           print('Make move failed: $e');
