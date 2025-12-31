@@ -8,26 +8,12 @@ class AudioManager {
   SoundEra _currentEra = SoundEra.modern; // Default
 
   void setEra(SoundEra era) {
-    if (_currentEra != era) {
-      _currentEra = era;
-      _preloadEraAssets();
-    }
+    // Disabled for stability
+    _currentEra = era;
   }
 
   Future<void> _preloadEraAssets() async {
-    final prefix = _getEraPrefix();
-    try {
-      // AudioPlayers 6.x loadAll returns list of URIs
-      await _cache.loadAll([
-        '$prefix/move.mp3',
-        '$prefix/capture.mp3',
-        '$prefix/check.mp3',
-        '$prefix/game_over.mp3',
-      ]);
-      print('AUDIO: Preloaded assets for $_currentEra');
-    } catch (e) {
-      print('AUDIO: Failed to preload assets for $_currentEra: $e');
-    }
+    // Disabled
   }
 
   String _getEraPrefix() {
