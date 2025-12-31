@@ -1,11 +1,17 @@
 import 'dart:async';
-import 'package:stockfish_flutter_plus/stockfish_flutter_plus.dart';
+import 'package:stockfish/stockfish.dart';
+import 'engine_info.dart';
+
+export 'engine_info.dart';
 
 class ChessEngine {
   late Stockfish _stockfish;
-  final _controller = StreamController<String>.broadcast();
+  final _stdoutController = StreamController<String>.broadcast();
+  final _infoController = StreamController<EngineInfo>.broadcast();
   final _readyCompleter = Completer<void>();
-  Stream<String> get stdout => _controller.stream;
+  
+  Stream<String> get stdout => _stdoutController.stream;
+  Stream<EngineInfo> get infoStream => _infoController.stream;
 
   ChessEngine() {
     print('GRANDMASTER_ENGINE: Native Stockfish Initializing...');
@@ -19,9 +25,80 @@ class ChessEngine {
       }
     });
 
-    _stockfish.stdout.listen((event) {
-      _controller.add(event);
+    _stockfish.stdout.listen((line) {
+      _stdoutController.add(line);
+      _parseEngineLine(line);
     });
+  }
+
+  void _parseEngineLine(String line) {
+    if (!line.startsWith('info')) return;
+    
+    // Check for pv (Principal Variation)
+    if (!line.contains(' pv ')) return; // Only interested in lines with moves
+
+    try {
+      double? evaluation;
+      int? mateIn;
+      int? depth;
+      List<String>? pv;
+
+      // Parse Depth
+      final depthMatch = RegExp(r'depth (\d+)').firstMatch(line);
+      if (depthMatch != null) {
+        depth = int.tryParse(depthMatch.group(1) ?? '');
+      }
+
+      // Parse Nodes
+      int? nodes;
+      final nodesMatch = RegExp(r'nodes (\d+)').firstMatch(line);
+      if (nodesMatch != null) {
+        nodes = int.tryParse(nodesMatch.group(1) ?? '');
+      }
+
+      // Parse NPS
+      int? nps;
+      final npsMatch = RegExp(r'nps (\d+)').firstMatch(line);
+      if (npsMatch != null) {
+        nps = int.tryParse(npsMatch.group(1) ?? '');
+      }
+
+      // Parse Score
+      if (line.contains('score mate')) {
+        final mateMatch = RegExp(r'score mate (-?\d+)').firstMatch(line);
+        if (mateMatch != null) {
+          mateIn = int.tryParse(mateMatch.group(1) ?? '');
+        }
+      } else if (line.contains('score cp')) {
+        final cpMatch = RegExp(r'score cp (-?\d+)').firstMatch(line);
+        if (cpMatch != null) {
+          final cp = int.tryParse(cpMatch.group(1) ?? '');
+          if (cp != null) {
+            evaluation = cp / 100.0;
+          }
+        }
+      }
+
+      // Parse PV
+      final pvIndex = line.indexOf(' pv ');
+      if (pvIndex != -1) {
+        final pvString = line.substring(pvIndex + 4).trim();
+        pv = pvString.split(' ');
+      }
+
+      if (evaluation != null || mateIn != null) {
+        _infoController.add(EngineInfo(
+          evaluation: evaluation,
+          mateIn: mateIn,
+          depth: depth,
+          nodes: nodes,
+          nps: nps,
+          pv: pv,
+        ));
+      }
+    } catch (e) {
+      print('Error parsing engine line: $e');
+    }
   }
 
   Future<void> sendCommand(String command) async {
@@ -55,7 +132,14 @@ class ChessEngine {
       }
     });
 
-    await sendCommand('position fen $fen');
+    String positionCommand;
+    if (fen == 'start' || fen == 'startpos') {
+      positionCommand = 'position startpos';
+    } else {
+      positionCommand = 'position fen $fen';
+    }
+
+    await sendCommand(positionCommand);
     await sendCommand('go depth $depth');
 
     // Add a timeout just in case
@@ -68,8 +152,26 @@ class ChessEngine {
     );
   }
 
+  /// Starts infinite analysis on the current position
+  Future<void> startAnalysis(String fen) async {
+    String positionCommand;
+    if (fen == 'start' || fen == 'startpos') {
+      positionCommand = 'position startpos';
+    } else {
+      positionCommand = 'position fen $fen';
+    }
+
+    await sendCommand(positionCommand);
+    await sendCommand('go infinite');
+  }
+
+  Future<void> stopAnalysis() async {
+    await sendCommand('stop');
+  }
+
   void dispose() {
     _stockfish.dispose();
-    _controller.close();
+    _stdoutController.close();
+    _infoController.close();
   }
 }
