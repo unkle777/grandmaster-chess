@@ -17,9 +17,11 @@ class GrandmasterChessApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Grandmaster Chess',
+      title: 'Deep Chess',
       debugShowCheckedModeBanner: false,
-      theme: ChessTheme.darkTheme,
+      theme: ChessTheme.lightTheme,
+      darkTheme: ChessTheme.darkTheme,
+      themeMode: ThemeMode.system,
       home: const GameScreen(),
     );
   }

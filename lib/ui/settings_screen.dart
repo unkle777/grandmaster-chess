@@ -12,88 +12,84 @@ class SettingsScreen extends ConsumerWidget {
     final gameState = ref.watch(gameProvider);
     final gameNotifier = ref.read(gameProvider.notifier);
     final isHumanVsAi = gameState.gameMode == GameMode.humanVsAi;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: ChessTheme.midnight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: ChessTheme.gold),
+          icon: Icon(Icons.arrow_back, color: Theme.of(context).dividerColor),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'SETTINGS',
-          style: TextStyle(
-            color: ChessTheme.gold,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 2,
-            fontSize: 18,
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            color: ChessTheme.trafficOrange,
+            letterSpacing: 1,
+            fontSize: 14,
           ),
         ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          _buildSectionHeader('GAMEPLAY'),
+          _buildSectionHeader(context, 'GAMEPLAY'),
           _buildSwitchTile(
-            'Visual Thinking Lines',
-            'Show arrows for the engine\'s last move',
+            context,
+            'VISUAL THINKING',
             gameState.showArrows,
             (value) => gameNotifier.updateSettings(showArrows: value),
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 24),
           
-          _buildSectionHeader('MODE'),
+          _buildSectionHeader(context, 'MODE'),
           _buildModeSelector(
+            context,
             gameState.gameMode, 
             (mode) => gameNotifier.updateSettings(gameMode: mode)
           ),
           
-          const SizedBox(height: 30),
+          const SizedBox(height: 24),
           
           if (isHumanVsAi) ...[
-            _buildSectionHeader('YOUR COLOR'),
+            _buildSectionHeader(context, 'YOUR COLOR'),
             _buildSwitchTile(
-              gameState.playAsWhite ? 'Playing as White' : 'Playing as Black',
-              gameState.playAsWhite ? 'You move first' : 'Engine moves first',
+              context,
+              gameState.playAsWhite ? 'WHITE' : 'BLACK',
               gameState.playAsWhite,
               (val) => gameNotifier.updateSettings(playAsWhite: val),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
-            _buildSectionHeader('OPPONENT PERSONA'),
-            const SizedBox(height: 10),
+            _buildSectionHeader(context, 'OPPONENT'),
             ...ChessPersona.all.map((persona) => _buildPersonaCard(
                   context,
                   persona,
-                  gameState.blackPersona.name == persona.name, // Match by name to be safe
+                  gameState.blackPersona.name == persona.name,
                   (p) => gameNotifier.updateSettings(blackPersona: p),
                 )),
           ] else ...[
-            _buildSectionHeader('WHITE PLAYER'),
+            _buildSectionHeader(context, 'WHITE PLAYER'),
             _buildPersonaDropdown(
+              context,
               gameState.whitePersona,
               (p) => gameNotifier.updateSettings(whitePersona: p),
             ),
             const SizedBox(height: 20),
-            _buildSectionHeader('BLACK PLAYER'),
+            _buildSectionHeader(context, 'BLACK PLAYER'),
              _buildPersonaDropdown(
+              context,
               gameState.blackPersona,
               (p) => gameNotifier.updateSettings(blackPersona: p),
             ),
             const SizedBox(height: 20),
-            const Center(
-               child: Text(
-                 'AI vs AI starts automatically',
-                 style: TextStyle(color: ChessTheme.accentGold),
-               ),
-            ),
           ],
 
           const SizedBox(height: 40),
-          const Center(
+          Center(
             child: Text(
-              'Stockfish 16.0 Engine',
-              style: TextStyle(color: ChessTheme.silver, fontSize: 10),
+              'EP-133 K.O. II ENGINE',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 8, color: Theme.of(context).dividerColor.withOpacity(0.5)),
             ),
           ),
         ],
@@ -101,81 +97,54 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
   
-  Widget _buildModeSelector(GameMode currentMode, Function(GameMode) onChanged) {
+  Widget _buildModeSelector(BuildContext context, GameMode currentMode, Function(GameMode) onChanged) {
     return Container(
-      decoration: ChessTheme.glassmorphism,
+      decoration: ChessTheme.koStyle(context),
       padding: const EdgeInsets.all(4),
       child: Row(
         children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: () => onChanged(GameMode.humanVsAi),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: currentMode == GameMode.humanVsAi ? ChessTheme.gold : null,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Center(
-                  child: Text(
-                    'HUMAN VS AI',
-                    style: TextStyle(
-                      color: currentMode == GameMode.humanVsAi ? Colors.black : Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: GestureDetector(
-              onTap: () => onChanged(GameMode.aiVsAi),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: currentMode == GameMode.aiVsAi ? ChessTheme.gold : null,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Center(
-                  child: Text(
-                    'AI VS AI',
-                    style: TextStyle(
-                      color: currentMode == GameMode.aiVsAi ? Colors.black : Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          Expanded(child: _buildModeButton(context, 'HUMAN', currentMode == GameMode.humanVsAi, () => onChanged(GameMode.humanVsAi))),
+          Expanded(child: _buildModeButton(context, 'AIvAI', currentMode == GameMode.aiVsAi, () => onChanged(GameMode.aiVsAi))),
         ],
       ),
     );
   }
-  
-  Widget _buildPersonaDropdown(ChessPersona selected, Function(ChessPersona) onChanged) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        color: ChessTheme.coal,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white24),
+
+  Widget _buildModeButton(BuildContext context, String label, bool isSelected, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        color: isSelected ? ChessTheme.trafficOrange : Colors.transparent,
+        child: Center(
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: isSelected ? Colors.white : Theme.of(context).dividerColor,
+              fontSize: 10,
+            ),
+          ),
+        ),
       ),
+    );
+  }
+  
+  Widget _buildPersonaDropdown(BuildContext context, ChessPersona selected, Function(ChessPersona) onChanged) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: ChessTheme.koStyle(context),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<ChessPersona>(
           value: ChessPersona.all.firstWhere((p) => p.name == selected.name, orElse: () => ChessPersona.all.first),
-          dropdownColor: ChessTheme.coal,
+          dropdownColor: Theme.of(context).cardColor,
           isExpanded: true,
-          icon: const Icon(Icons.arrow_drop_down, color: ChessTheme.gold),
+          icon: Icon(Icons.arrow_drop_down, color: ChessTheme.trafficOrange),
           items: ChessPersona.all.map((persona) {
             return DropdownMenuItem(
               value: persona,
               child: Text(
-                '${persona.name} (${persona.year})',
-                style: const TextStyle(color: Colors.white),
+                '${persona.name.toUpperCase()} (${persona.year})',
+                style: Theme.of(context).textTheme.bodyMedium,
               ),
             );
           }).toList(),
@@ -187,64 +156,49 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(BuildContext context, String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Text(
         title,
-        style: TextStyle(
-          color: ChessTheme.silver.withOpacity(0.5),
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 1.5,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: Theme.of(context).dividerColor.withOpacity(0.4),
+          fontSize: 8,
+          letterSpacing: 1,
         ),
       ),
     );
   }
 
-  Widget _buildSwitchTile(
-      String title, String subtitle, bool value, Function(bool) onChanged) {
+  Widget _buildSwitchTile(BuildContext context, String title, bool value, Function(bool) onChanged) {
     return Container(
-      decoration: ChessTheme.glassmorphism,
-      padding: const EdgeInsets.all(16),
+      decoration: ChessTheme.koStyle(context),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: const TextStyle(color: Colors.white, fontSize: 16)),
-                const SizedBox(height: 4),
-                Text(subtitle,
-                    style: TextStyle(color: ChessTheme.silver.withOpacity(0.7), fontSize: 12)),
-              ],
-            ),
-          ),
+          Text(title, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 10)),
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: ChessTheme.gold,
-            activeTrackColor: ChessTheme.coal,
+            activeColor: ChessTheme.trafficOrange,
+            activeTrackColor: Theme.of(context).dividerColor.withOpacity(0.1),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPersonaCard(BuildContext context, ChessPersona persona,
-      bool isSelected, Function(ChessPersona) onSelect) {
+  Widget _buildPersonaCard(BuildContext context, ChessPersona persona, bool isSelected, Function(ChessPersona) onSelect) {
     return GestureDetector(
       onTap: () => onSelect(persona),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? ChessTheme.gold.withOpacity(0.1) : ChessTheme.coal,
-          borderRadius: BorderRadius.circular(12),
+          color: isSelected ? ChessTheme.trafficOrange.withOpacity(0.05) : Theme.of(context).cardColor,
           border: Border.all(
-            color: isSelected ? ChessTheme.gold : Colors.white10,
+            color: isSelected ? ChessTheme.trafficOrange : Theme.of(context).dividerColor.withOpacity(0.3),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -254,61 +208,28 @@ class SettingsScreen extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Text(
-                      persona.name.toUpperCase(),
-                      style: TextStyle(
-                        color: isSelected ? ChessTheme.gold : Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.white10,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        persona.year,
-                        style: const TextStyle(color: ChessTheme.silver, fontSize: 10),
-                      ),
-                    ),
-                  ],
+                Text(
+                  persona.name.toUpperCase(),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: isSelected ? ChessTheme.trafficOrange : Theme.of(context).dividerColor,
+                    fontSize: 12,
+                  ),
                 ),
-                if (isSelected)
-                  const Icon(Icons.check_circle, color: ChessTheme.gold, size: 20),
+                Text(
+                  persona.year,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 8, color: Theme.of(context).dividerColor.withOpacity(0.5)),
+                ),
               ],
             ),
             const SizedBox(height: 8),
             Text(
               persona.vibe.toUpperCase(),
-              style: const TextStyle(
-                color: ChessTheme.accentGold,
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
-              ),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 7, color: ChessTheme.trafficOrange),
             ),
             const SizedBox(height: 8),
             Text(
-              '"${persona.bio}"',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
-                fontSize: 13,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Style: ${persona.style}',
-              style: TextStyle(
-                color: ChessTheme.silver.withOpacity(0.7),
-                fontSize: 12,
-              ),
+              persona.bio,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 8, height: 1.5),
             ),
           ],
         ),

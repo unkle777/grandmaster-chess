@@ -1,10 +1,9 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:state_notifier/state_notifier.dart';
 import 'package:chess/chess.dart' as chess_pkg hide Color;
 import 'package:flutter_chess_board/flutter_chess_board.dart' hide Color;
 import '../engine/stockfish_engine.dart';
-import '../services/sound_service.dart';
+import '../services/audio_manager.dart';
 import '../models/chess_persona.dart';
 
 final engineProvider = Provider((ref) {
@@ -28,6 +27,7 @@ class GameState {
   final double evaluation; // + ve white winning
   final int? mateIn;
   final List<String> bestMoveSequence;
+  final String? lastMoveLan; // e.g. e2e4
   
   // Metrics
   final int currentMoveNodes;
@@ -40,6 +40,8 @@ class GameState {
   
   // New Metrics
   final int legalMovesCount;
+  final int whiteLastNodes;
+  final int blackLastNodes;
   
   // Settings
   final bool showArrows;
@@ -59,12 +61,15 @@ class GameState {
     this.evaluation = 0.0,
     this.mateIn,
     this.bestMoveSequence = const [],
+    this.lastMoveLan,
     this.currentMoveNodes = 0,
     this.totalGameNodes = 0,
     this.lastCalcNodes,
     this.lastCalcDepth,
     this.lastCalcNps,
     this.legalMovesCount = 0,
+    this.whiteLastNodes = 0,
+    this.blackLastNodes = 0,
     this.showArrows = false,
     this.gameMode = GameMode.humanVsAi,
     this.playAsWhite = true,
@@ -82,12 +87,15 @@ class GameState {
     required this.evaluation,
     required this.mateIn,
     required this.bestMoveSequence,
+    required this.lastMoveLan,
     required this.currentMoveNodes,
     required this.totalGameNodes,
     required this.lastCalcNodes,
     required this.lastCalcDepth,
     required this.lastCalcNps,
     required this.legalMovesCount,
+    required this.whiteLastNodes,
+    required this.blackLastNodes,
     required this.showArrows,
     required this.gameMode,
     required this.whitePersona,
@@ -103,12 +111,15 @@ class GameState {
     double? evaluation,
     int? mateIn,
     List<String>? bestMoveSequence,
+    String? lastMoveLan,
     int? currentMoveNodes,
     int? totalGameNodes,
     int? lastCalcNodes,
     int? lastCalcDepth,
     int? lastCalcNps,
     int? legalMovesCount,
+    int? whiteLastNodes,
+    int? blackLastNodes,
     bool? showArrows,
     GameMode? gameMode,
     ChessPersona? whitePersona,
@@ -128,12 +139,15 @@ class GameState {
       evaluation: evaluation ?? this.evaluation,
       mateIn: mateIn ?? this.mateIn,
       bestMoveSequence: bestMoveSequence ?? this.bestMoveSequence,
+      lastMoveLan: lastMoveLan ?? this.lastMoveLan,
       currentMoveNodes: currentMoveNodes ?? this.currentMoveNodes,
       totalGameNodes: totalGameNodes ?? this.totalGameNodes,
       lastCalcNodes: lastCalcNodes ?? this.lastCalcNodes,
       lastCalcDepth: lastCalcDepth ?? this.lastCalcDepth,
       lastCalcNps: lastCalcNps ?? this.lastCalcNps,
       legalMovesCount: legalMovesCount ?? this.legalMovesCount,
+      whiteLastNodes: whiteLastNodes ?? this.whiteLastNodes,
+      blackLastNodes: blackLastNodes ?? this.blackLastNodes,
       showArrows: showArrows ?? this.showArrows,
       gameMode: gameMode ?? this.gameMode,
       whitePersona: whitePersona ?? this.whitePersona,
@@ -146,7 +160,7 @@ class GameState {
 class GameNotifier extends StateNotifier<GameState> {
   final ChessEngine _engine;
   final ChessBoardController _boardController = ChessBoardController();
-  final SoundService _soundService = SoundService();
+  final AudioManager _audioManager = AudioManager();
   StreamSubscription? _infoSubscription;
   bool _isAiThinking = false;
 
@@ -169,6 +183,9 @@ class GameNotifier extends StateNotifier<GameState> {
     await _engine.startNewGame();
     _applyPersonaSettings();
 
+    // Set initial audio era
+    _audioManager.setEra(state.blackPersona.era);
+
     // Subscribe to engine info
     _infoSubscription = _engine.infoStream.listen((info) {
       if (mounted) {
@@ -180,6 +197,9 @@ class GameNotifier extends StateNotifier<GameState> {
           lastCalcNodes: info.nodes,
           lastCalcDepth: info.depth,
           lastCalcNps: info.nps,
+          // Update specific side nodes live
+          whiteLastNodes: _boardController.getFen().split(' ')[1] == 'w' ? info.nodes : state.whiteLastNodes,
+          blackLastNodes: _boardController.getFen().split(' ')[1] == 'b' ? info.nodes : state.blackLastNodes,
         );
       }
     });
@@ -219,6 +239,8 @@ class GameNotifier extends StateNotifier<GameState> {
     ChessPersona? blackPersona,
     bool? playAsWhite,
   }) {
+    final oldBlackPersona = state.blackPersona;
+
     state = state.copyWith(
       showArrows: showArrows, 
       selectedPersona: persona, // Legacy/Black update
@@ -227,6 +249,11 @@ class GameNotifier extends StateNotifier<GameState> {
       blackPersona: blackPersona,
       playAsWhite: playAsWhite,
     );
+     
+    // Check if era changed (mainly dependent on opponent/black persona in current simpler logic)
+    if (state.blackPersona != oldBlackPersona) {
+       _audioManager.setEra(state.blackPersona.era);
+    }
     
     // If we changed sides or mode, we might need to trigger AI
     if (gameMode == GameMode.aiVsAi && !state.isGameOver && !_isAiThinking) {
@@ -242,16 +269,16 @@ class GameNotifier extends StateNotifier<GameState> {
 
   void _playMoveSound(String moveSan) {
     if (state.isGameOver) {
-      _soundService.playGameOver();
+      _audioManager.playGameOver();
       return;
     }
 
     if (moveSan.contains('#') || moveSan.contains('+')) {
-      _soundService.playCheck();
+      // _audioManager.playCheck();
     } else if (moveSan.contains('x')) {
-      _soundService.playCapture();
+      // _audioManager.playCapture();
     } else {
-      _soundService.playMove();
+      // _audioManager.playMove();
     }
   }
 
@@ -268,6 +295,9 @@ class GameNotifier extends StateNotifier<GameState> {
       
       // Set engine skill
       await _engine.setLevel(activePersona.skillLevel);
+
+      // Switch audio bank to moving persona's era
+      _audioManager.setEra(activePersona.era);
       
       // Start Search
       final stopwatch = Stopwatch()..start();
@@ -310,6 +340,7 @@ class GameNotifier extends StateNotifier<GameState> {
           // AIvAI: always "user turn" = false? Or irrelevant.
           isUserTurn: state.gameMode == GameMode.humanVsAi, 
           bestMoveSequence: [bestMove], // Arrow
+          lastMoveLan: bestMove,
           totalGameNodes: newTotalNodes,
           lastCalcNodes: nodesSearched,
           legalMovesCount: nextLegalMoves,
@@ -349,7 +380,8 @@ class GameNotifier extends StateNotifier<GameState> {
     state = state.copyWith(
       fen: _boardController.getFen(), 
       isUserTurn: false,
-      bestMoveSequence: [], 
+      bestMoveSequence: [],
+      lastMoveLan: move, 
       currentMoveNodes: 0, 
       legalMovesCount: legalMoves,
     );
@@ -362,7 +394,6 @@ class GameNotifier extends StateNotifier<GameState> {
     _triggerAiMove();
   }
   
-  @override
   void resetGame() async {
     // Force stop everything
     _isAiThinking = false; 
@@ -408,7 +439,7 @@ class GameNotifier extends StateNotifier<GameState> {
   @override
   void dispose() {
     _infoSubscription?.cancel();
-    _soundService.dispose();
+    _audioManager.dispose();
     super.dispose();
   }
 }

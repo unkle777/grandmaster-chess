@@ -35,7 +35,7 @@ class ArrowPainter extends CustomPainter {
 
     // Draw the first best move prominently
     final bestMove = pv.first;
-    _drawArrow(canvas, size, bestMove, ChessTheme.accentGold.withOpacity(0.8));
+    _drawArrow(canvas, size, bestMove, ChessTheme.trafficOrange);
 
     // Optionally draw the response move?
     // if (pv.length > 1) {

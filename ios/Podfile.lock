@@ -29,7 +29,7 @@ SPEC CHECKSUMS:
   audioplayers_darwin: 4f9ca89d92d3d21cec7ec580e78ca888e5fb68bd
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   path_provider_foundation: bb55f6dbba17d0dccd6737fe6f7f34fbd0376880
-  stockfish: 8928ba773347f2c10193ceab21aad40ec2009183
+  stockfish: 1465cb6a024b0caa201217949f66fb9ec837777e
 
 PODFILE CHECKSUM: 3e679c0a196d4d175cf4f8ac75f8bfba35d06bba
 
