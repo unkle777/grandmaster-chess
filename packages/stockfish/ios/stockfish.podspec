@@ -17,13 +17,17 @@ Pod::Spec.new do |s|
   s.source = { :git => pubspec['repository'], :tag => s.version.to_s }
   s.source_files = 'Classes/**/*', 'FlutterStockfish/*', 'Stockfish/src/**/*'
   s.public_header_files = 'Classes/**/*.h'
-  s.exclude_files = 'Stockfish/src/incbin/UNLICENCE', '**/*.nnue'
+  s.exclude_files = 'Stockfish/src/incbin/UNLICENCE'
   s.dependency 'Flutter'
   s.platform = :ios, '12.0'
   s.ios.deployment_target  = '12.0'
 
   # Flutter.framework does not contain a i386 slice.
-  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386' }
+  s.pod_target_xcconfig = { 
+    'DEFINES_MODULE' => 'YES', 
+    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
+    'HEADER_SEARCH_PATHS' => '"$(PODS_TARGET_SRCROOT)/Stockfish/src"'
+  }
 
   # Additional compiler configuration required for Stockfish
   s.library = 'c++'
@@ -31,9 +35,9 @@ Pod::Spec.new do |s|
   s.xcconfig = {
     'CLANG_CXX_LANGUAGE_STANDARD' => 'c++17',
     'CLANG_CXX_LIBRARY' => 'libc++',
-    'OTHER_CPLUSPLUSFLAGS[config=Debug]' => '$(inherited) -std=c++17 -DUSE_PTHREADS -DIS_64BIT -DUSE_POPCNT',
+    'OTHER_CPLUSPLUSFLAGS[config=Debug]' => '$(inherited) -std=c++17 -DUSE_PTHREADS -DIS_64BIT -DUSE_POPCNT -I$(PODS_TARGET_SRCROOT)/Stockfish/src',
     'OTHER_LDFLAGS[config=Debug]' => '$(inherited) -std=c++17 -DUSE_PTHREADS -DIS_64BIT -DUSE_POPCNT',
-    'OTHER_CPLUSPLUSFLAGS[config=Release]' => '$(inherited) -fno-exceptions -std=c++17 -DUSE_PTHREADS -DNDEBUG -O3 -DIS_64BIT -DUSE_POPCNT -DUSE_NEON=8 -flto=full',
+    'OTHER_CPLUSPLUSFLAGS[config=Release]' => '$(inherited) -fno-exceptions -std=c++17 -DUSE_PTHREADS -DNDEBUG -O3 -DIS_64BIT -DUSE_POPCNT -DUSE_NEON=8 -flto=full -I$(PODS_TARGET_SRCROOT)/Stockfish/src',
     'OTHER_LDFLAGS[config=Release]' => '$(inherited) -fno-exceptions -std=c++17 -DUSE_PTHREADS -DNDEBUG -O3 -DIS_64BIT -DUSE_POPCNT -DUSE_NEON=8 -flto=full'
   }
 end

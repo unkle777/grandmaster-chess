@@ -5,6 +5,7 @@ import 'package:flutter_chess_board/flutter_chess_board.dart' hide Color;
 import '../engine/stockfish_engine.dart';
 import '../services/audio_manager.dart';
 import '../models/chess_persona.dart';
+import '../services/debug_logger.dart';
 
 final engineProvider = Provider((ref) {
   print('GAME_PROVIDER: Initializing engineProvider');
@@ -31,7 +32,12 @@ class GameState {
   
   // Metrics
   final int currentMoveNodes;
-  final int totalGameNodes;
+  final int totalGameNodes; // Total GLOBAL
+  final int whiteTotalNodes; // NEW
+  final int blackTotalNodes; // NEW
+  
+  final int whiteLastTurnNodes; // For displaying "Positions Assessed" this turn
+  final int blackLastTurnNodes; // For displaying "Positions Assessed" this turn
   
   // Persisted Metrics (Last Calculation)
   final int? lastCalcNodes;
@@ -40,8 +46,6 @@ class GameState {
   
   // New Metrics
   final int legalMovesCount;
-  final int whiteLastNodes;
-  final int blackLastNodes;
   
   // Settings
   final bool showArrows;
@@ -64,12 +68,14 @@ class GameState {
     this.lastMoveLan,
     this.currentMoveNodes = 0,
     this.totalGameNodes = 0,
+    this.whiteTotalNodes = 0,
+    this.blackTotalNodes = 0,
+    this.whiteLastTurnNodes = 0,
+    this.blackLastTurnNodes = 0,
     this.lastCalcNodes,
     this.lastCalcDepth,
     this.lastCalcNps,
     this.legalMovesCount = 0,
-    this.whiteLastNodes = 0,
-    this.blackLastNodes = 0,
     this.showArrows = false,
     this.gameMode = GameMode.humanVsAi,
     this.playAsWhite = true,
@@ -90,12 +96,14 @@ class GameState {
     required this.lastMoveLan,
     required this.currentMoveNodes,
     required this.totalGameNodes,
+    required this.whiteTotalNodes,
+    required this.blackTotalNodes,
+    required this.whiteLastTurnNodes,
+    required this.blackLastTurnNodes,
     required this.lastCalcNodes,
     required this.lastCalcDepth,
     required this.lastCalcNps,
     required this.legalMovesCount,
-    required this.whiteLastNodes,
-    required this.blackLastNodes,
     required this.showArrows,
     required this.gameMode,
     required this.whitePersona,
@@ -114,12 +122,14 @@ class GameState {
     String? lastMoveLan,
     int? currentMoveNodes,
     int? totalGameNodes,
+    int? whiteTotalNodes,
+    int? blackTotalNodes,
+    int? whiteLastTurnNodes,
+    int? blackLastTurnNodes,
     int? lastCalcNodes,
     int? lastCalcDepth,
     int? lastCalcNps,
     int? legalMovesCount,
-    int? whiteLastNodes,
-    int? blackLastNodes,
     bool? showArrows,
     GameMode? gameMode,
     ChessPersona? whitePersona,
@@ -142,12 +152,14 @@ class GameState {
       lastMoveLan: lastMoveLan ?? this.lastMoveLan,
       currentMoveNodes: currentMoveNodes ?? this.currentMoveNodes,
       totalGameNodes: totalGameNodes ?? this.totalGameNodes,
+      whiteTotalNodes: whiteTotalNodes ?? this.whiteTotalNodes,
+      blackTotalNodes: blackTotalNodes ?? this.blackTotalNodes,
+      whiteLastTurnNodes: whiteLastTurnNodes ?? this.whiteLastTurnNodes,
+      blackLastTurnNodes: blackLastTurnNodes ?? this.blackLastTurnNodes,
       lastCalcNodes: lastCalcNodes ?? this.lastCalcNodes,
       lastCalcDepth: lastCalcDepth ?? this.lastCalcDepth,
       lastCalcNps: lastCalcNps ?? this.lastCalcNps,
       legalMovesCount: legalMovesCount ?? this.legalMovesCount,
-      whiteLastNodes: whiteLastNodes ?? this.whiteLastNodes,
-      blackLastNodes: blackLastNodes ?? this.blackLastNodes,
       showArrows: showArrows ?? this.showArrows,
       gameMode: gameMode ?? this.gameMode,
       whitePersona: whitePersona ?? this.whitePersona,
@@ -155,29 +167,30 @@ class GameState {
       playAsWhite: playAsWhite ?? this.playAsWhite,
     );
   }
-}
+} // End GameState
 
 class GameNotifier extends StateNotifier<GameState> {
   final ChessEngine _engine;
   final ChessBoardController _boardController = ChessBoardController();
-  final AudioManager _audioManager = AudioManager();
+  final AudioManager _audioManager;
   StreamSubscription? _infoSubscription;
   bool _isAiThinking = false;
 
-  GameNotifier(this._engine) : super(
+  GameNotifier(this._engine, {AudioManager? audioManager}) 
+      : _audioManager = audioManager ?? AudioManager(),
+        super(
     GameState(
       fen: 'start', 
-      isUserTurn: true, 
+      isUserTurn: true, // Default is White Human vs AI White? No.
+      // logic: default playAsWhite=true. So isUserTurn=true.
       playAsWhite: true,
     )
   ) {
     _initEngine();
-    // The _initEngine() call was removed here as per instruction.
-    // The logic from the removed _initEngine method should be integrated directly into the constructor or another appropriate place if needed.
-    // For now, just removing the method definition.
   }
 
   ChessBoardController get boardController => _boardController;
+  GameState get currentState => state; // Exposed for testing
 
   void _initEngine() async {
     await _engine.startNewGame();
@@ -193,13 +206,12 @@ class GameNotifier extends StateNotifier<GameState> {
           evaluation: info.evaluation,
           mateIn: info.mateIn,
           currentMoveNodes: info.nodes,
+          
           // Update last metrics live as well, so they are ready when search stops
           lastCalcNodes: info.nodes,
           lastCalcDepth: info.depth,
           lastCalcNps: info.nps,
-          // Update specific side nodes live
-          whiteLastNodes: _boardController.getFen().split(' ')[1] == 'w' ? info.nodes : state.whiteLastNodes,
-          blackLastNodes: _boardController.getFen().split(' ')[1] == 'b' ? info.nodes : state.blackLastNodes,
+          // Removed LastNodes specific tracking here, relying on total updates at move end
         );
       }
     });
@@ -293,17 +305,38 @@ class GameNotifier extends StateNotifier<GameState> {
       final isWhiteTurn = _boardController.getFen().split(' ')[1] == 'w';
       final activePersona = isWhiteTurn ? state.whitePersona : state.blackPersona;
       
+      DebugLogger().log('AI', 'Turn: ${isWhiteTurn ? "White" : "Black"} (${activePersona.name})');
+      
       // Set engine skill
       await _engine.setLevel(activePersona.skillLevel);
 
       // Switch audio bank to moving persona's era
       _audioManager.setEra(activePersona.era);
       
+      DebugLogger().log('AI', 'Searching depth ${activePersona.depthLimit ?? 15}...');
+
       // Start Search
       final stopwatch = Stopwatch()..start();
       final depth = activePersona.depthLimit ?? 15;
-      final bestMove = await _engine.getBestMove(state.fen, depth: depth);
       
+      String? bestMove = await _engine.getBestMove(state.fen, depth: depth);
+      
+      // Retry Logic if timeout/null
+      if (bestMove == null) {
+         DebugLogger().log('AI', 'Search timed out / null. Retrying at lower depth (10)...');
+         bestMove = await _engine.getBestMove(state.fen, depth: 10);
+         
+         if (bestMove == null) {
+             DebugLogger().log('AI_CRITICAL', 'Retry failed. Forcing random legal move or skipping.');
+             // Extreme fallback: could ask engine for ANY move or just stop.
+             // For now, let's stop recursion to prevent stack overflow/freeze loop, but log it loudly.
+             _isAiThinking = false; 
+             return;
+         }
+      }
+      
+      DebugLogger().log('AI', 'Best move found: $bestMove');
+
       // Artificial Delay
       final elapsed = stopwatch.elapsedMilliseconds;
       if (elapsed < 500) { // Reduced delay for snappier feels since we have guards
@@ -313,20 +346,18 @@ class GameNotifier extends StateNotifier<GameState> {
       // Accumulate total nodes
       final nodesSearched = state.currentMoveNodes;
       final newTotalNodes = state.totalGameNodes + nodesSearched;
+      final newWhiteTotal = isWhiteTurn ? state.whiteTotalNodes + nodesSearched : state.whiteTotalNodes;
+      final newBlackTotal = !isWhiteTurn ? state.blackTotalNodes + nodesSearched : state.blackTotalNodes;
 
-      if (bestMove != null && bestMove.isNotEmpty && mounted) {
+      if (bestMove.isNotEmpty && mounted) {
         final from = bestMove.substring(0, 2);
         final to = bestMove.substring(2, 4);
-        final promo = bestMove.length > 4 ? bestMove.substring(4, 5) : null;
         
         try {
           // Note: controller.makeMove doesn't support promotion arg directly in this version. 
-          // It likely defaults to Queen or we need to access internal game object. 
-          // For now, removing arg to fix build.
           _boardController.makeMove(from: from, to: to);
         } catch (e) {
-          // If move fails (illegal?), force game over or stop
-          print('Make move failed: $e');
+          DebugLogger().log('AI_ERROR', 'Make move failed: $e');
           _checkGameOver();
           return; 
         }
@@ -339,34 +370,29 @@ class GameNotifier extends StateNotifier<GameState> {
         
         state = state.copyWith(
           fen: _boardController.getFen(), 
-          // Logic for isUserTurn: 
-          // HvAI: if moved (computer), it's user turn.
-          // AIvAI: always "user turn" = false? Or irrelevant.
-          isUserTurn: state.gameMode == GameMode.humanVsAi, 
-          bestMoveSequence: [bestMove], // Arrow
+           isUserTurn: state.gameMode == GameMode.humanVsAi, 
+          bestMoveSequence: [bestMove], 
           lastMoveLan: bestMove,
           totalGameNodes: newTotalNodes,
+          whiteTotalNodes: newWhiteTotal,
+          blackTotalNodes: newBlackTotal,
+          // Update the "Last Move" nodes for the player who just finished thinking
+          whiteLastTurnNodes: isWhiteTurn ? nodesSearched : state.whiteLastTurnNodes,
+          blackLastTurnNodes: !isWhiteTurn ? nodesSearched : state.blackLastTurnNodes,
           lastCalcNodes: nodesSearched,
           legalMovesCount: nextLegalMoves,
         );
         _checkGameOver();
         
-        final history = _boardController.getSan();
-        if (history.isNotEmpty) {
-           final moveSan = history.last;
-           _playMoveSound(moveSan ?? '');
-        }
-        
         // If AI vs AI, trigger next move
         if (state.gameMode == GameMode.aiVsAi && !state.isGameOver) {
-          // Add small delay to let UI breathe before next move triggering
+          // recursion
           Future.delayed(const Duration(milliseconds: 100), () => _triggerAiMove());
         }
       }
+    } catch (e) {
+       DebugLogger().log('AI_EXCEPTION', e.toString());
     } finally {
-      // release lock only if not recursively calling (loop handled by recursive call timing)
-      // Actually we must release it so the next call can proceed.
-      // But wait: if we call _triggerAiMove recursively at the end, that call will be blocked if we don't release.
       _isAiThinking = false;
     }
   }
@@ -377,11 +403,26 @@ class GameNotifier extends StateNotifier<GameState> {
     if (!state.isUserTurn || state.isGameOver) return;
 
     // 1. Make User Move
+    // 1. Make User Move
     try {
-      _boardController.makeMoveWithNormalNotation(move);
+      print("GAME_LOG: User attempting move: '$move'");
+      // Use explicit from/to if possible, fallback to notation parsing
+      if (move.length == 4 || move.length == 5) {
+         final from = move.substring(0, 2);
+         final to = move.substring(2, 4);
+         final promo = move.length == 5 ? move.substring(4,5) : null;
+         print("GAME_LOG: Parsed as FROM: $from, TO: $to, PROMO: $promo");
+         
+         // Fix: Use makeMove instead of notation if we have LAN coordinates
+         // promotion arg not supported in this version of controller wrapper, usually defaults to Q
+         _boardController.makeMove(from: from, to: to); 
+      } else {
+         _boardController.makeMoveWithNormalNotation(move);
+      }
+      print("GAME_LOG: Move '$move' successful on board.");
     } catch (e) {
-      print('Human move failed or rejected: $e');
-      return; // Stop if move is invalid
+      print('GAME_LOG: Human move failed: $e');
+      return; 
     }
     
     int legalMoves = 0;
@@ -414,10 +455,11 @@ class GameNotifier extends StateNotifier<GameState> {
     
     state = GameState(
       fen: 'start', 
-      isUserTurn: true, // Will update if AI plays first
+      isUserTurn: state.playAsWhite, // IF User is White, True. If Black, False via AI Trigger
       gameMode: state.gameMode,
       whitePersona: state.whitePersona,
       blackPersona: state.blackPersona,
+      playAsWhite: state.playAsWhite,
     );
     await _engine.startNewGame();
     
@@ -426,6 +468,7 @@ class GameNotifier extends StateNotifier<GameState> {
       _triggerAiMove();
     } else if (state.gameMode == GameMode.humanVsAi && !state.playAsWhite) {
       // If Human plays Black, AI (White) moves first
+      // isUserTurn starts as false (from above).
       _triggerAiMove();
     }
   }

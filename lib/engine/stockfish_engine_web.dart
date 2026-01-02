@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+
 import 'package:chess/chess.dart' as chess_pkg;
 import 'engine_info.dart';
 

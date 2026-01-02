@@ -33,24 +33,26 @@ namespace Eval {
 // for the build process (profile-build and fishtest) to work. Do not change the
 // name of the macro or the location where this macro is defined, as it is used
 // in the Makefile/Fishtest.
-#define EvalFileDefaultNameBig "nn-1111cefa1111.nnue"
-#define EvalFileDefaultNameSmall "nn-37f18f62d772.nnue"
+#define EvalFileDefaultNameBig                                                 \
+  "/Users/nickdavie/.gemini/antigravity/scratch/grandmaster_chess/packages/"   \
+  "stockfish/ios/Stockfish/src/nn-1111cefa1111.nnue"
+#define EvalFileDefaultNameSmall                                               \
+  "/Users/nickdavie/.gemini/antigravity/scratch/grandmaster_chess/packages/"   \
+  "stockfish/ios/Stockfish/src/nn-37f18f62d772.nnue"
 
 namespace NNUE {
 struct Networks;
 struct AccumulatorCaches;
-}
+} // namespace NNUE
 
-std::string trace(Position& pos, const Eval::NNUE::Networks& networks);
+std::string trace(Position &pos, const Eval::NNUE::Networks &networks);
 
-int   simple_eval(const Position& pos, Color c);
-bool  use_smallnet(const Position& pos);
-Value evaluate(const NNUE::Networks&          networks,
-               const Position&                pos,
-               Eval::NNUE::AccumulatorCaches& caches,
-               int                            optimism);
-}  // namespace Eval
+int simple_eval(const Position &pos, Color c);
+bool use_smallnet(const Position &pos);
+Value evaluate(const NNUE::Networks &networks, const Position &pos,
+               Eval::NNUE::AccumulatorCaches &caches, int optimism);
+} // namespace Eval
 
-}  // namespace Stockfish
+} // namespace Stockfish
 
-#endif  // #ifndef EVALUATE_H_INCLUDED
+#endif // #ifndef EVALUATE_H_INCLUDED

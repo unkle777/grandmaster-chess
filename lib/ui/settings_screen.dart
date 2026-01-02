@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/game_provider.dart';
 import '../theme.dart';
+
 import '../models/chess_persona.dart';
+import 'debug_log_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -12,7 +14,7 @@ class SettingsScreen extends ConsumerWidget {
     final gameState = ref.watch(gameProvider);
     final gameNotifier = ref.read(gameProvider.notifier);
     final isHumanVsAi = gameState.gameMode == GameMode.humanVsAi;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -86,12 +88,24 @@ class SettingsScreen extends ConsumerWidget {
           ],
 
           const SizedBox(height: 40),
-          Center(
-            child: Text(
-              'EP-133 K.O. II ENGINE',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 8, color: Theme.of(context).dividerColor.withOpacity(0.5)),
+            Center(
+              child: Column(
+                children: [
+                  Text(
+                    'EP-133 K.O. II ENGINE',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 8, color: Theme.of(context).dividerColor.withOpacity(0.5)),
+                  ),
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: () => Navigator.push(
+                      context, 
+                      MaterialPageRoute(builder: (_) => const DebugLogScreen())
+                    ),
+                    child: Text('VIEW DEBUG LOGS', style: TextStyle(color: ChessTheme.trafficOrange, fontSize: 10)),
+                  ),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:stockfish/stockfish.dart';
 import 'engine_info.dart';
+import '../services/debug_logger.dart';
 
 export 'engine_info.dart';
 
@@ -26,6 +27,10 @@ class ChessEngine {
     });
 
     _stockfish.stdout.listen((line) {
+      // DebugLogger().log('SF_OUT', line); // Too noisy? Maybe only non-info
+      if (!line.startsWith('info')) {
+         DebugLogger().log('SF_OUT', line);
+      }
       _stdoutController.add(line);
       _parseEngineLine(line);
     });
@@ -116,6 +121,7 @@ class ChessEngine {
   }
 
   Future<String?> getBestMove(String fen, {int depth = 15}) async {
+    print("GAME_LOG: Engine requested for FEN: $fen at Depth: $depth");
     final completer = Completer<String?>();
     
     StreamSubscription? subscription;
@@ -142,10 +148,11 @@ class ChessEngine {
     await sendCommand(positionCommand);
     await sendCommand('go depth $depth');
 
-    // Add a timeout just in case
+    // Increase timeout to 60s to prevent freezing on deep searches
     return completer.future.timeout(
-      const Duration(seconds: 10),
+      const Duration(seconds: 60),
       onTimeout: () {
+        DebugLogger().log('ENGINE', 'Timeout waiting for bestmove (60s)');
         subscription?.cancel();
         return null;
       },

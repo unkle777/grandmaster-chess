@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_chess_board/flutter_chess_board.dart' hide Color;
+
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/game_provider.dart';
 import '../theme.dart';
@@ -14,25 +14,8 @@ class GameScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    print("DEBUG: GameScreen Build (Simple)");
-    // Temporary simplification to isolate crash
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Center(
-        child: Text(
-          "DEEP CHESS\nSAFE MODE",
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.white, fontSize: 24),
-        ),
-      ),
-    );
-  }
-
-  // Original UI commented out below for restoration
-  /*
     final gameState = ref.watch(gameProvider);
     final gameNotifier = ref.read(gameProvider.notifier);
-    // ... rest of build ...
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -109,9 +92,12 @@ class GameScreen extends ConsumerWidget {
     final numberFormat = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
     
     // Nodes
-    final whiteNodes = state.whiteLastNodes.toString().replaceAllMapped(numberFormat, (m) => '${m[1]},');
-    final blackNodes = state.blackLastNodes.toString().replaceAllMapped(numberFormat, (m) => '${m[1]},');
-    final totalNodes = state.totalGameNodes.toString().replaceAllMapped(numberFormat, (m) => '${m[1]},');
+    // Nodes
+    final currentNodes = state.currentMoveNodes.toString().replaceAllMapped(numberFormat, (m) => '${m[1]},');
+    final whiteLastNodes = state.whiteLastTurnNodes.toString().replaceAllMapped(numberFormat, (m) => '${m[1]},');
+    final blackLastNodes = state.blackLastTurnNodes.toString().replaceAllMapped(numberFormat, (m) => '${m[1]},');
+    // Totals
+    // final totalNodes = state.totalGameNodes.toString().replaceAllMapped(numberFormat, (m) => '${m[1]},'); // used in bottom row via direct state access
     
     // Active Indicator
     // Active Indicator
@@ -129,7 +115,7 @@ class GameScreen extends ConsumerWidget {
               children: [
                 _buildPersonaHeader(context, "WHITE", state.whitePersona.name, isWhiteTurn),
                 const SizedBox(height: 8),
-                _buildMetricValue(context, "POSITIONS ASSESSED", whiteNodes, isWhiteTurn),
+                _buildMetricValue(context, "POSITIONS ASSESSED", isWhiteTurn ? currentNodes : whiteLastNodes, isWhiteTurn),
               ],
             )),
             // Vertical Divider
@@ -140,17 +126,17 @@ class GameScreen extends ConsumerWidget {
               children: [
                 _buildPersonaHeader(context, "BLACK", state.blackPersona.name, !isWhiteTurn),
                 const SizedBox(height: 8),
-                _buildMetricValue(context, "POSITIONS ASSESSED", blackNodes, !isWhiteTurn),
+                _buildMetricValue(context, "POSITIONS ASSESSED", !isWhiteTurn ? currentNodes : blackLastNodes, !isWhiteTurn),
               ],
             )),
           ],
         ),
         const Divider(height: 16, thickness: 1),
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildMetricBox(context, "TOTAL POSITIONS ASSESSED", totalNodes),
-            _buildMetricBox(context, "EVALUATION", _getWinProbText(state)),
+            Expanded(child: _buildMetricBox(context, 'WHITE TOTAL', _formatNumber(state.whiteTotalNodes))),
+            const SizedBox(width: 8),
+            Expanded(child: _buildMetricBox(context, 'BLACK TOTAL', _formatNumber(state.blackTotalNodes))),
           ],
         ),
       ],
@@ -173,13 +159,7 @@ class GameScreen extends ConsumerWidget {
         _buildMetricRow(context, "POSITIONS ASSESSED", nodesFormatted, showLive),
         _buildMetricRow(context, "TOTAL POSITIONS ASSESSED", totalNodes, false),
         const Divider(height: 16, thickness: 1),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildMetricBox(context, "MOVES AHEAD PLANNED", "$depth"),
-            _buildMetricBox(context, "WIN%", _getWinProbText(state)),
-          ],
-        ),
+        _buildMetricBox(context, "MOVES AHEAD PLANNED", "$depth"),
       ],
     );
   }
@@ -235,19 +215,7 @@ class GameScreen extends ConsumerWidget {
     );
   }
   
-  String _getWinProbText(GameState state) {
-      if (state.mateIn != null) {
-        return state.mateIn! > 0 ? "100% BLK" : "100% WHT";
-      }
-      final cp = state.evaluation;
-      final double blackExponent = -(cp / 400.0);
-      final double blackWinProb = 1.0 / (1.0 + pow(10, blackExponent));
-      final whiteWinProb = 1.0 - blackWinProb;
-      
-      if (blackWinProb > 0.55) return "${(blackWinProb * 100).toStringAsFixed(0)}% BLK";
-      if (whiteWinProb > 0.55) return "${(whiteWinProb * 100).toStringAsFixed(0)}% WHT";
-      return "50% DRAW";
-  }
+
 
   Widget _buildMetricBox(BuildContext context, String label, String value) {
     return Column(
@@ -269,7 +237,6 @@ class GameScreen extends ConsumerWidget {
 
   Widget _buildBoard(BuildContext context, GameState state, GameNotifier notifier) {
     final isWhiteBottom = state.playAsWhite;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -360,5 +327,11 @@ class GameScreen extends ConsumerWidget {
         fontWeight: FontWeight.w900, // Black/Thick
       ),
     );
+  }
+
+  String _formatNumber(int? number) {
+    if (number == null) return "0";
+    final reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
+    return number.toString().replaceAllMapped(reg, (m) => '${m[1]},');
   }
 }

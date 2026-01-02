@@ -8,6 +8,7 @@ class ChessTheme {
   static const Color padWhite = Color(0xFFF0F2F0);    // Light pad color
   static const Color trafficOrange = Color(0xFFFF421F); // Signature TE orange
   static const Color lcdBlack = Color(0xFF111111);    // Digital segments
+  static const Color coal = Color(0xFF151515);        // Dark charcoal
   
   static const Color boardLight = padWhite;
   static const Color boardDark = Color(0xFFB0B2B0);   // Darker grey for contrast
