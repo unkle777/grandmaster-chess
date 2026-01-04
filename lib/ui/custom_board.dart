@@ -105,7 +105,12 @@ class CustomBoard extends StatelessWidget {
     
     final child = _buildPieceSvg(piece, size);
     
-    if (isLocked) return SizedBox(width: size, height: size, child: child);
+    // Determine if this piece is controlled by AI
+    bool isAiPiece = false;
+    if (piece.color == chess_pkg.Color.WHITE && isAiWhite) isAiPiece = true;
+    if (piece.color == chess_pkg.Color.BLACK && isAiBlack) isAiPiece = true;
+
+    if (isLocked || isAiPiece) return SizedBox(width: size, height: size, child: child);
     
     return Draggable<String>(
       data: squareName,

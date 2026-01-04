@@ -290,6 +290,7 @@ class GameNotifier extends StateNotifier<GameState> {
     bool? playAsWhite,
   }) {
     final oldBlackPersona = state.blackPersona;
+    final oldPlayAsWhite = state.playAsWhite;
 
     state = state.copyWith(
       showArrows: showArrows, 
@@ -309,14 +310,13 @@ class GameNotifier extends StateNotifier<GameState> {
     if (gameMode == GameMode.aiVsAi) {
       state = state.copyWith(isAiPaused: true);
       resetGame(keepMode: true);
-    } else if (gameMode == GameMode.humanVsAi && !state.isGameOver && !_isAiThinking) {
-        // If switched back to human? might want to reset too, but logic below handles 'if not game over'
-        
-       // If user switched to Black and it's White's turn (start), AI should move
-       final isWhiteTurn = _boardController.getFen().split(' ')[1] == 'w';
-       if (!state.playAsWhite && isWhiteTurn) {
-         _triggerAiMove();
-       }
+    } 
+    // If Side Changed, FORCE RESET to ensure clean start state (paused if Black)
+    else if (playAsWhite != null && playAsWhite != oldPlayAsWhite) {
+      resetGame(keepMode: true);
+    }
+    else if (gameMode == GameMode.humanVsAi && !state.isGameOver && !_isAiThinking) {
+        // ... (remaining logic for other setting changes if needed, mostly covered by reset)
     }
   }
 
@@ -362,10 +362,16 @@ class GameNotifier extends StateNotifier<GameState> {
     _isAiThinking = false;
   }
   
-  void startAiGame() {
-    if (state.gameMode == GameMode.aiVsAi && state.isAiPaused) {
-      state = state.copyWith(isAiPaused: false);
-      _triggerAiMove();
+    void startAiGame() {
+    if (state.isAiPaused) {
+      if (state.gameMode == GameMode.aiVsAi) {
+         state = state.copyWith(isAiPaused: false);
+         _triggerAiMove();
+      } else if (state.gameMode == GameMode.humanVsAi && !state.playAsWhite) {
+         state = state.copyWith(isAiPaused: false);
+         // White (AI) needs to move first.
+         _triggerAiMove();
+      }
     }
   }
 
@@ -411,6 +417,8 @@ class GameNotifier extends StateNotifier<GameState> {
       
       DebugLogger().log('AI', 'Searching depth ${activePersona.depthLimit ?? 15}...');
 
+      /* 
+      // PAUSED: User requested to disable Watchdog for now.
       // Start Watchdog Timer
       // If AI thinks for >10 seconds, flag 'isLongSearch' so UI can show a force-quit button
       Timer(const Duration(seconds: 10), () {
@@ -419,6 +427,7 @@ class GameNotifier extends StateNotifier<GameState> {
            state = state.copyWith(isLongSearch: true);
         }
       });
+      */
 
       // Signature Openings (Move 1 only)
       String? bestMove;
