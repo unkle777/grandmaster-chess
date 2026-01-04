@@ -146,7 +146,9 @@ class ChessEngine {
     if (fen == 'start' || fen == 'startpos') {
       positionCommand = 'position startpos';
     } else {
-      positionCommand = 'position fen $fen';
+      // Security: Sanitize FEN to prevent UCI command injection
+      final cleanFen = fen.replaceAll('\n', '').replaceAll('\r', '');
+      positionCommand = 'position fen $cleanFen';
     }
 
     await sendCommand(positionCommand);
