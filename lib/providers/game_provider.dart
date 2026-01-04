@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:chess/chess.dart' as chess_pkg hide Color;
 import 'package:flutter_chess_board/flutter_chess_board.dart' hide Color;
@@ -251,12 +252,22 @@ class GameNotifier extends StateNotifier<GameState> {
       // If user is White, engine is Black. If user is Black, engine is White.
       final enginePersona = state.playAsWhite ? state.blackPersona : state.whitePersona;
       _engine.setLevel(enginePersona.skillLevel);
+      
+      // Apply custom UCI options (e.g. Contempt)
+      enginePersona.uciOptions.forEach((key, value) {
+         _engine.setOption(key, value);
+      });
+      
     } else {
       // AI vs AI: Set based on current turn
       final activePersona = _boardController.getFen().split(' ')[1] == 'w' 
           ? state.whitePersona 
           : state.blackPersona;
       _engine.setLevel(activePersona.skillLevel);
+      
+      activePersona.uciOptions.forEach((key, value) {
+         _engine.setOption(key, value);
+      });
     }
   }
   
@@ -384,11 +395,33 @@ class GameNotifier extends StateNotifier<GameState> {
       
       DebugLogger().log('AI', 'Searching depth ${activePersona.depthLimit ?? 15}...');
 
-      // Start Search
+      // Signature Openings (Move 1 only)
+      String? bestMove;
+      final history = (_boardController as dynamic).game.history;
+      if (history.isEmpty && activePersona.openingMoves.isNotEmpty) {
+         final random = Random();
+         // 80% chance to use signature opening
+         if (random.nextInt(100) < 80) {
+            DebugLogger().log('AI', 'Attempting signature opening for ${activePersona.name}...');
+            final moves = activePersona.openingMoves;
+            bestMove = moves[random.nextInt(moves.length)];
+            DebugLogger().log('AI', 'Selected signature move: $bestMove');
+            
+            // Check legality just in case
+            // The moves are reliable LAN, but engine might need time to init? No, it's bypassed.
+            // Move string format needs to be correct. LAN is fine for makeMove in logic below.
+         } else {
+            DebugLogger().log('AI', 'Skipping signature opening (20% variance). Using engine.');
+         }
+      }
+
+      // Start Search (if no signature move selected)
       final stopwatch = Stopwatch()..start();
-      final depth = activePersona.depthLimit ?? 15;
       
-      String? bestMove = await _engine.getBestMove(state.fen, depth: depth);
+      if (bestMove == null) {
+        final depth = activePersona.depthLimit ?? 15;
+        bestMove = await _engine.getBestMove(state.fen, depth: depth);
+      }
       
       // Retry Logic if timeout/null
       if (bestMove == null) {

@@ -115,6 +115,10 @@ class ChessEngine {
     await sendCommand('setoption name Skill Level value $level');
   }
 
+  Future<void> setOption(String name, String value) async {
+    await sendCommand('setoption name $name value $value');
+  }
+
   Future<void> startNewGame() async {
     await sendCommand('ucinewgame');
     await sendCommand('isready');
