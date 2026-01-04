@@ -604,18 +604,19 @@ class GameNotifier extends StateNotifier<GameState> {
       blackPersona: state.blackPersona,
       playAsWhite: state.playAsWhite,
       themeMode: state.themeMode, 
-      isAiPaused: state.gameMode == GameMode.aiVsAi, // Pause if AI vs AI
+      isAiPaused: state.gameMode == GameMode.aiVsAi || (!state.playAsWhite && state.gameMode == GameMode.humanVsAi), // Pause if AI vs AI OR playing as Black
       isLongSearch: false,
     );
     await _engine.startNewGame();
     
-    // If AI vs AI, we WAIT for start button now.
+    // If AI vs AI OR Human plays Black, we wait for a start command now.
+    // This allows the user to see the board from Black's perspective before the AI inst-moves.
     if (state.gameMode == GameMode.aiVsAi) {
        // Do nothing, wait for startAiGame()
     } else if (state.gameMode == GameMode.humanVsAi && !state.playAsWhite) {
-      // If Human plays Black, AI (White) moves first
-      // isUserTurn starts as false (from above).
-      _triggerAiMove();
+       // Wait for start button to trigger _triggerAiMove
+    } else if (state.gameMode == GameMode.humanVsAi && state.playAsWhite) {
+       // Human starts.
     }
   }
 

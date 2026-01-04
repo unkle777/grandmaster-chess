@@ -282,7 +282,7 @@ class GameScreen extends ConsumerWidget {
                     isWhiteBottom: isWhiteBottom,
                   ),
                 ),
-              if (state.gameMode == GameMode.aiVsAi && state.isAiPaused && !state.isGameOver)
+              if (state.isAiPaused && !state.isGameOver)
                  Positioned.fill(
                    child: Container(
                      color: Colors.black54,
@@ -294,7 +294,7 @@ class GameScreen extends ConsumerWidget {
                            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                          ),
                          child: Text(
-                           "START SYSTEM",
+                           "START GAME",
                            style: GoogleFonts.orbitron(
                              color: Colors.white,
                              fontWeight: FontWeight.bold,
@@ -311,9 +311,9 @@ class GameScreen extends ConsumerWidget {
                   bottom: 100,
                   right: 20,
                   child: FloatingActionButton.extended(
-                    backgroundColor: Colors.red,
+                    backgroundColor: ChessTheme.trafficOrange,
                     icon: const Icon(Icons.refresh),
-                    label: const Text("Force AI Restart"),
+                    label: const Text("Reset Engine"),
                     onPressed: () {
                        notifier.forceEngineRestart();
                     },
