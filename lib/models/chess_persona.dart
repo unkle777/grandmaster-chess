@@ -12,6 +12,7 @@ class ChessPersona {
   final String style;
   final int skillLevel; // 0-20 (Stockfish Skill Level)
   final int? depthLimit; // Optional depth limit for older engines
+  final int elo;
 
   const ChessPersona({
     required this.name,
@@ -20,6 +21,7 @@ class ChessPersona {
     required this.bio,
     required this.style,
     required this.skillLevel,
+    required this.elo,
     this.depthLimit,
   });
   
@@ -39,6 +41,7 @@ class ChessPersona {
       style: 'Very passive. Makes logical but weak moves.',
       skillLevel: 0,
       depthLimit: 2,
+      elo: 650,
     ),
     ChessPersona(
       name: 'Mephisto',
@@ -48,6 +51,7 @@ class ChessPersona {
       style: 'Solid, tactical, and annoying to beat for casual players.',
       skillLevel: 7,
       depthLimit: 8,
+      elo: 1600,
     ),
     ChessPersona(
       name: 'Deep Blue',
@@ -56,6 +60,7 @@ class ChessPersona {
       bio: "In 1997, I defeated Gary Kasparov. I am the monolith of brute force. I play concrete, precise chess.",
       style: 'Classical, materialistic, and extremely precise.',
       skillLevel: 16,
+      elo: 2850,
     ),
     ChessPersona(
       name: 'AlphaZero',
@@ -64,6 +69,7 @@ class ChessPersona {
       bio: "I learned chess by playing myself for 4 hours. I sacrifice pieces for reasons you won't understand until it's too late.",
       style: 'Intuitive, artistic, and terrifying. Prefers mobility over material.',
       skillLevel: 20,
+      elo: 3600,
     ),
     ChessPersona(
       name: 'Stockfish 16',
@@ -72,6 +78,7 @@ class ChessPersona {
       bio: "I am the open-source king. I combine brute force with neural networks. I see 40 moves ahead. Resistance is futile.",
       style: 'Flawless. The perfect chess player.',
       skillLevel: 20,
+      elo: 3800,
     ),
   ];
 }

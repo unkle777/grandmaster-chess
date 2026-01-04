@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class ChessTheme {
-  // EP-133 K.O. II Physical Palette
+  // Vintage Sampler Physical Palette
   static const Color vintageCase = Color(0xFFD4D6D5); // Warm retro grey
   static const Color darkSensor = Color(0xFF2B2B2D);  // Dark display surround
   static const Color padWhite = Color(0xFFF0F2F0);    // Light pad color
@@ -49,7 +49,7 @@ class ChessTheme {
       primaryColor: trafficOrange,
       scaffoldBackgroundColor: darkSensor,
       cardColor: lcdBlack,
-      dividerColor: vintageCase.withOpacity(0.3),
+      dividerColor: vintageCase.withValues(alpha: 0.3),
       textTheme: GoogleFonts.orbitronTextTheme(base.textTheme).copyWith(
         displayLarge: GoogleFonts.orbitron(color: padWhite, fontWeight: FontWeight.bold),
         displayMedium: GoogleFonts.orbitron(color: padWhite, fontWeight: FontWeight.bold),
@@ -77,7 +77,7 @@ class ChessTheme {
     return BoxDecoration(
       color: Theme.of(context).cardColor,
       border: Border.all(
-        color: isDark ? vintageCase.withOpacity(0.3) : lcdBlack,
+        color: isDark ? vintageCase.withValues(alpha: 0.3) : lcdBlack,
         width: 1,
       ),
     );

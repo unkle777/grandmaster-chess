@@ -7,6 +7,8 @@ import '../services/audio_manager.dart';
 import '../models/chess_persona.dart';
 import '../services/debug_logger.dart';
 
+import 'package:flutter/material.dart';
+
 final engineProvider = Provider((ref) {
   print('GAME_PROVIDER: Initializing engineProvider');
   final engine = ChessEngine();
@@ -23,6 +25,7 @@ enum GameMode {
 class GameState {
   final String fen;
   final bool isUserTurn;
+  final bool isInCheck;
   final bool isGameOver;
   final String? winner;
   final double evaluation; // + ve white winning
@@ -53,6 +56,8 @@ class GameState {
   final ChessPersona whitePersona;
   final ChessPersona blackPersona;
   final bool playAsWhite;
+  final ThemeMode themeMode;
+  final bool isAiPaused;
 
   // Helper for backward compatibility / UI convenience
   ChessPersona get selectedPersona => blackPersona; 
@@ -60,6 +65,7 @@ class GameState {
   GameState({
     required this.fen,
     required this.isUserTurn,
+    this.isInCheck = false,
     this.isGameOver = false,
     this.winner,
     this.evaluation = 0.0,
@@ -79,6 +85,8 @@ class GameState {
     this.showArrows = false,
     this.gameMode = GameMode.humanVsAi,
     this.playAsWhite = true,
+    this.themeMode = ThemeMode.system,
+    this.isAiPaused = false,
     ChessPersona? whitePersona,
     ChessPersona? blackPersona,
   }) : 
@@ -88,6 +96,7 @@ class GameState {
   GameState.raw({
     required this.fen,
     required this.isUserTurn,
+    required this.isInCheck,
     required this.isGameOver,
     required this.winner,
     required this.evaluation,
@@ -109,11 +118,14 @@ class GameState {
     required this.whitePersona,
     required this.blackPersona,
     required this.playAsWhite,
+    required this.themeMode,
+    required this.isAiPaused,
   });
 
   GameState copyWith({
     String? fen,
     bool? isUserTurn,
+    bool? isInCheck,
     bool? isGameOver,
     String? winner,
     double? evaluation,
@@ -135,6 +147,8 @@ class GameState {
     ChessPersona? whitePersona,
     ChessPersona? blackPersona,
     bool? playAsWhite,
+    ThemeMode? themeMode,
+    bool? isAiPaused,
     // Deprecated argument support
     ChessPersona? selectedPersona,
   }) {
@@ -144,6 +158,7 @@ class GameState {
     return GameState.raw(
       fen: fen ?? this.fen,
       isUserTurn: isUserTurn ?? this.isUserTurn,
+      isInCheck: isInCheck ?? this.isInCheck,
       isGameOver: isGameOver ?? this.isGameOver,
       winner: winner ?? this.winner,
       evaluation: evaluation ?? this.evaluation,
@@ -165,6 +180,8 @@ class GameState {
       whitePersona: whitePersona ?? this.whitePersona,
       blackPersona: effectiveBlackPersona,
       playAsWhite: playAsWhite ?? this.playAsWhite,
+      themeMode: themeMode ?? this.themeMode,
+      isAiPaused: isAiPaused ?? this.isAiPaused,
     );
   }
 } // End GameState
@@ -267,15 +284,67 @@ class GameNotifier extends StateNotifier<GameState> {
        _audioManager.setEra(state.blackPersona.era);
     }
     
-    // If we changed sides or mode, we might need to trigger AI
-    if (gameMode == GameMode.aiVsAi && !state.isGameOver && !_isAiThinking) {
-      _triggerAiMove();
+    // If switched to AI vs AI, FORCE RESET immediately
+    if (gameMode == GameMode.aiVsAi) {
+      state = state.copyWith(isAiPaused: true);
+      resetGame(keepMode: true);
     } else if (gameMode == GameMode.humanVsAi && !state.isGameOver && !_isAiThinking) {
+        // If switched back to human? might want to reset too, but logic below handles 'if not game over'
+        
        // If user switched to Black and it's White's turn (start), AI should move
        final isWhiteTurn = _boardController.getFen().split(' ')[1] == 'w';
        if (!state.playAsWhite && isWhiteTurn) {
          _triggerAiMove();
        }
+    }
+  }
+
+  void updateTheme(ThemeMode mode) {
+    state = state.copyWith(themeMode: mode);
+  }
+  
+  void undo() {
+    if (state.gameMode == GameMode.aiVsAi) return; // No undo in AI vs AI for now
+    
+    // Undo User Move
+    // If it's Human vs AI, we usually need to undo 2 moves (AI response + User move)
+    // unless the AI hasn't moved yet.
+    
+    // Check history length
+    final moves = (_boardController as dynamic).game.history;
+    if (moves.isEmpty) return;
+    
+    _boardController.undoMove(); // Undo AI or last move
+    
+    // If it was AI's turn (computing) or AI just moved, we might rely on logic.
+    // Simpler approach: Undo until it's user's turn again? 
+    // Or just single undo. 
+    // Standard behavior: Undo 2 half-moves to get back to User's turn.
+    
+    if (state.gameMode == GameMode.humanVsAi) {
+       // If we just undid the AI move (white or black), it is now the OTHER side's turn.
+       // We likely want to undo again to get back to the User's state *before* they made the mistake.
+       
+       if ((_boardController as dynamic).game.history.isNotEmpty) {
+          _boardController.undoMove();
+       }
+    }
+    
+    state = state.copyWith(
+      fen: _boardController.getFen(),
+      isUserTurn: true, // Force user turn after undo?
+      isGameOver: false,
+      winner: null,
+      bestMoveSequence: [],
+    );
+    _engine.stopAnalysis();
+    _isAiThinking = false;
+  }
+  
+  void startAiGame() {
+    if (state.gameMode == GameMode.aiVsAi && state.isAiPaused) {
+      state = state.copyWith(isAiPaused: false);
+      _triggerAiMove();
     }
   }
 
@@ -400,18 +469,20 @@ class GameNotifier extends StateNotifier<GameState> {
   void makeMove(String move) async {
     // Human Move Entry Point (only for HvAI)
     if (state.gameMode == GameMode.aiVsAi) return; // Ignore human input in AIvAI
-    if (!state.isUserTurn || state.isGameOver) return;
+    if (!state.isUserTurn || state.isGameOver) {
+      DebugLogger().log('GAME', 'Move ignored: Not user turn or game over');
+      return;
+    }
 
     // 1. Make User Move
-    // 1. Make User Move
+    final initialFen = _boardController.getFen();
     try {
-      print("GAME_LOG: User attempting move: '$move'");
+      DebugLogger().log('GAME', 'User attempting move: $move');
       // Use explicit from/to if possible, fallback to notation parsing
       if (move.length == 4 || move.length == 5) {
          final from = move.substring(0, 2);
          final to = move.substring(2, 4);
-         final promo = move.length == 5 ? move.substring(4,5) : null;
-         print("GAME_LOG: Parsed as FROM: $from, TO: $to, PROMO: $promo");
+         // final promo = move.length == 5 ? move.substring(4,5) : null;
          
          // Fix: Use makeMove instead of notation if we have LAN coordinates
          // promotion arg not supported in this version of controller wrapper, usually defaults to Q
@@ -419,9 +490,19 @@ class GameNotifier extends StateNotifier<GameState> {
       } else {
          _boardController.makeMoveWithNormalNotation(move);
       }
-      print("GAME_LOG: Move '$move' successful on board.");
+      
+      // CRITICAL FIX: Check if the board actually changed. 
+      // flutter_chess_board controller might not throw on all illegal moves, but the state won't change.
+      final newFen = _boardController.getFen();
+      if (initialFen == newFen) {
+        DebugLogger().log('GAME_WARNING', 'Move $move validation failed (FEN unchanged). Ignoring.');
+        return; 
+      }
+      
+      DebugLogger().log('GAME', 'Move $move successful. Board updated.');
+
     } catch (e) {
-      print('GAME_LOG: Human move failed: $e');
+      DebugLogger().log('GAME_ERROR', 'Human move failed with exception: $e');
       return; 
     }
     
@@ -447,7 +528,7 @@ class GameNotifier extends StateNotifier<GameState> {
     _triggerAiMove();
   }
   
-  void resetGame() async {
+  void resetGame({bool keepMode = false}) async {
     // Force stop everything
     _isAiThinking = false; 
     await _engine.stopAnalysis();
@@ -455,17 +536,19 @@ class GameNotifier extends StateNotifier<GameState> {
     
     state = GameState(
       fen: 'start', 
-      isUserTurn: state.playAsWhite, // IF User is White, True. If Black, False via AI Trigger
-      gameMode: state.gameMode,
+      isUserTurn: state.playAsWhite, 
+      gameMode: keepMode ? state.gameMode : state.gameMode,
       whitePersona: state.whitePersona,
       blackPersona: state.blackPersona,
       playAsWhite: state.playAsWhite,
+      themeMode: state.themeMode, 
+      isAiPaused: state.gameMode == GameMode.aiVsAi, // Pause if AI vs AI
     );
     await _engine.startNewGame();
     
-    // If AI vs AI, trigger
+    // If AI vs AI, we WAIT for start button now.
     if (state.gameMode == GameMode.aiVsAi) {
-      _triggerAiMove();
+       // Do nothing, wait for startAiGame()
     } else if (state.gameMode == GameMode.humanVsAi && !state.playAsWhite) {
       // If Human plays Black, AI (White) moves first
       // isUserTurn starts as false (from above).
@@ -485,8 +568,10 @@ class GameNotifier extends StateNotifier<GameState> {
       } else {
         winner = 'Draw';
       }
-      state = state.copyWith(isGameOver: true, winner: winner);
+      state = state.copyWith(isGameOver: true, winner: winner, isInCheck: chess.in_check);
       _engine.stopAnalysis();
+    } else {
+      state = state.copyWith(isInCheck: chess.in_check);
     }
   }
 

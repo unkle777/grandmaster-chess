@@ -16,8 +16,8 @@ Pod::Spec.new do |s|
   s.author           = 'Arjan Aswal'
   s.source = { :git => pubspec['repository'], :tag => s.version.to_s }
   s.source_files = 'Classes/**/*', 'FlutterStockfish/*', 'Stockfish/src/**/*'
+  s.exclude_files = 'Stockfish/src/incbin/UNLICENCE', 'Stockfish/src/**/*.nnue'
   s.public_header_files = 'Classes/**/*.h'
-  s.exclude_files = 'Stockfish/src/incbin/UNLICENCE'
   s.dependency 'Flutter'
   s.platform = :ios, '12.0'
   s.ios.deployment_target  = '12.0'

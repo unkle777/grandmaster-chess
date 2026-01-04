@@ -35,6 +35,20 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          _buildSectionHeader(context, 'THEME'),
+          Container(
+            decoration: ChessTheme.koStyle(context),
+            padding: const EdgeInsets.all(4),
+            child: Row(
+              children: [
+                Expanded(child: _buildModeButton(context, 'LIGHT', gameState.themeMode == ThemeMode.light, () => gameNotifier.updateTheme(ThemeMode.light))),
+                Expanded(child: _buildModeButton(context, 'DARK', gameState.themeMode == ThemeMode.dark, () => gameNotifier.updateTheme(ThemeMode.dark))),
+                Expanded(child: _buildModeButton(context, 'SYSTEM', gameState.themeMode == ThemeMode.system, () => gameNotifier.updateTheme(ThemeMode.system))),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
           _buildSectionHeader(context, 'GAMEPLAY'),
           _buildSwitchTile(
             context,
@@ -92,8 +106,8 @@ class SettingsScreen extends ConsumerWidget {
               child: Column(
                 children: [
                   Text(
-                    'EP-133 K.O. II ENGINE',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 8, color: Theme.of(context).dividerColor.withOpacity(0.5)),
+                    'DEEP CHESS ENGINE',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 8, color: Theme.of(context).dividerColor.withValues(alpha: 0.5)),
                   ),
                   const SizedBox(height: 12),
                   TextButton(
@@ -102,6 +116,11 @@ class SettingsScreen extends ConsumerWidget {
                       MaterialPageRoute(builder: (_) => const DebugLogScreen())
                     ),
                     child: Text('VIEW DEBUG LOGS', style: TextStyle(color: ChessTheme.trafficOrange, fontSize: 10)),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'VERSION 1.0.0',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 8, color: Theme.of(context).dividerColor.withValues(alpha: 0.3)),
                   ),
                 ],
               ),
@@ -157,7 +176,7 @@ class SettingsScreen extends ConsumerWidget {
             return DropdownMenuItem(
               value: persona,
               child: Text(
-                '${persona.name.toUpperCase()} (${persona.year})',
+                '${persona.name.toUpperCase()} (${persona.year}) - ELO ${persona.elo}',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             );
@@ -176,7 +195,7 @@ class SettingsScreen extends ConsumerWidget {
       child: Text(
         title,
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-          color: Theme.of(context).dividerColor.withOpacity(0.4),
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.4),
           fontSize: 8,
           letterSpacing: 1,
         ),
@@ -195,8 +214,8 @@ class SettingsScreen extends ConsumerWidget {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: ChessTheme.trafficOrange,
-            activeTrackColor: Theme.of(context).dividerColor.withOpacity(0.1),
+            activeThumbColor: ChessTheme.trafficOrange,
+            activeTrackColor: Theme.of(context).dividerColor.withValues(alpha: 0.1),
           ),
         ],
       ),
@@ -210,9 +229,9 @@ class SettingsScreen extends ConsumerWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? ChessTheme.trafficOrange.withOpacity(0.05) : Theme.of(context).cardColor,
+          color: isSelected ? ChessTheme.trafficOrange.withValues(alpha: 0.05) : Theme.of(context).cardColor,
           border: Border.all(
-            color: isSelected ? ChessTheme.trafficOrange : Theme.of(context).dividerColor.withOpacity(0.3),
+            color: isSelected ? ChessTheme.trafficOrange : Theme.of(context).dividerColor.withValues(alpha: 0.3),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -230,8 +249,8 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 ),
                 Text(
-                  persona.year,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 8, color: Theme.of(context).dividerColor.withOpacity(0.5)),
+                  '${persona.year} • ELO ${persona.elo}',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 8, color: Theme.of(context).dividerColor.withValues(alpha: 0.5)),
                 ),
               ],
             ),
@@ -243,7 +262,7 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 8),
             Text(
               persona.bio,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 8, height: 1.5),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 11, height: 1.5),
             ),
           ],
         ),

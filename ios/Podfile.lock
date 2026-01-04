@@ -22,7 +22,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   path_provider_foundation: bb55f6dbba17d0dccd6737fe6f7f34fbd0376880
-  stockfish: 60b805307e405ecd14331312dc3efb6bfccee192
+  stockfish: 282898e6982af18b7510cc4818bbfe5a88d96284
 
 PODFILE CHECKSUM: 74b95488f19750036ce073eb4fe6da8f0eed7a19
 

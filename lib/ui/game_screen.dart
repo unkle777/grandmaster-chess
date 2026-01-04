@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:google_fonts/google_fonts.dart';
+import '../models/chess_persona.dart';
 import '../providers/game_provider.dart';
 import '../theme.dart';
 import 'board_overlay.dart';
@@ -24,14 +25,12 @@ class GameScreen extends ConsumerWidget {
           children: [
             _buildHeader(context, gameState),
             Expanded(
-              child: Center(
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildBoard(context, gameState, gameNotifier),
-                    ],
-                  ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildBoard(context, gameState, gameNotifier),
+                  ],
                 ),
               ),
             ),
@@ -69,9 +68,9 @@ class GameScreen extends ConsumerWidget {
             ],
           ),
           Text(
-            "HUMAN VS MACHINE",
+            state.gameMode == GameMode.aiVsAi ? "MACHINE VS MACHINE" : "HUMAN VS MACHINE",
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).dividerColor.withOpacity(0.6),
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.6),
               letterSpacing: 2,
             ),
           ),
@@ -113,18 +112,18 @@ class GameScreen extends ConsumerWidget {
             Expanded(child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildPersonaHeader(context, "WHITE", state.whitePersona.name, isWhiteTurn),
+                _buildPersonaHeader(context, "WHITE", state.whitePersona, isWhiteTurn),
                 const SizedBox(height: 8),
                 _buildMetricValue(context, "POSITIONS ASSESSED", isWhiteTurn ? currentNodes : whiteLastNodes, isWhiteTurn),
               ],
             )),
             // Vertical Divider
-            Container(width: 1, height: 40, color: Theme.of(context).dividerColor.withOpacity(0.2), margin: const EdgeInsets.symmetric(horizontal: 8)),
+            Container(width: 1, height: 40, color: Theme.of(context).dividerColor.withValues(alpha: 0.2), margin: const EdgeInsets.symmetric(horizontal: 8)),
             // Black Column
             Expanded(child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildPersonaHeader(context, "BLACK", state.blackPersona.name, !isWhiteTurn),
+                _buildPersonaHeader(context, "BLACK", state.blackPersona, !isWhiteTurn),
                 const SizedBox(height: 8),
                 _buildMetricValue(context, "POSITIONS ASSESSED", !isWhiteTurn ? currentNodes : blackLastNodes, !isWhiteTurn),
               ],
@@ -133,12 +132,28 @@ class GameScreen extends ConsumerWidget {
         ),
         const Divider(height: 16, thickness: 1),
         Row(
-          children: [
-            Expanded(child: _buildMetricBox(context, 'WHITE TOTAL', _formatNumber(state.whiteTotalNodes))),
-            const SizedBox(width: 8),
-            Expanded(child: _buildMetricBox(context, 'BLACK TOTAL', _formatNumber(state.blackTotalNodes))),
-          ],
+           crossAxisAlignment: CrossAxisAlignment.start,
+           children: [
+             Expanded(child: _buildMetricBox(context, 'WHITE TOTAL', _formatNumber(state.whiteTotalNodes), color: ChessTheme.trafficOrange)),
+              // Spacer to match the vertical divider spacing above if needed, but Expanded is key
+             Container(width: 1, margin: const EdgeInsets.symmetric(horizontal: 8)), 
+             Expanded(child: _buildMetricBox(context, 'BLACK TOTAL', _formatNumber(state.blackTotalNodes), color: Theme.of(context).textTheme.bodyLarge?.color)),
+           ],
         ),
+      ],
+    );
+  }
+
+  Widget _buildMetricValue(BuildContext context, String label, String value, bool highlight) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 7, color: Theme.of(context).dividerColor.withValues(alpha: 0.5))),
+        Text(value, style: GoogleFonts.orbitron(
+           color: highlight ? ChessTheme.trafficOrange : Theme.of(context).dividerColor,
+           fontSize: 12, 
+           fontWeight: FontWeight.bold
+        )),
       ],
     );
   }
@@ -154,8 +169,10 @@ class GameScreen extends ConsumerWidget {
     final opponent = state.blackPersona; 
     
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildMetricRow(context, "OPPONENT", "${opponent.name.toUpperCase()} (${opponent.year})", false),
+        _buildMetricRow(context, "OPPONENT", opponent.name.toUpperCase(), false),
+        _buildMetricRow(context, "OPPONENT ELO", "${opponent.elo}", false),
         _buildMetricRow(context, "POSITIONS ASSESSED", nodesFormatted, showLive),
         _buildMetricRow(context, "TOTAL POSITIONS ASSESSED", totalNodes, false),
         const Divider(height: 16, thickness: 1),
@@ -164,32 +181,20 @@ class GameScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPersonaHeader(BuildContext context, String side, String name, bool isActive) {
+  Widget _buildPersonaHeader(BuildContext context, String side, ChessPersona persona, bool isActive) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(side, style: Theme.of(context).textTheme.bodyMedium?.copyWith(
           fontSize: 8, 
-          color: isActive ? ChessTheme.trafficOrange : Theme.of(context).dividerColor.withOpacity(0.5)
+          color: isActive ? ChessTheme.trafficOrange : Theme.of(context).dividerColor.withValues(alpha: 0.5)
         )),
         const SizedBox(height: 2),
-        Text(name.toUpperCase(), style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+        Text(
+          "${persona.name.toUpperCase()} (${persona.elo})",
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
           fontSize: 10,
           color: isActive ? ChessTheme.trafficOrange : Theme.of(context).dividerColor
-        )),
-      ],
-    );
-  }
-  
-  Widget _buildMetricValue(BuildContext context, String label, String value, bool highlight) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 7, color: Theme.of(context).dividerColor.withOpacity(0.5))),
-        Text(value, style: GoogleFonts.orbitron(
-           color: highlight ? ChessTheme.trafficOrange : Theme.of(context).dividerColor,
-           fontSize: 12, 
-           fontWeight: FontWeight.bold
         )),
       ],
     );
@@ -201,7 +206,7 @@ class GameScreen extends ConsumerWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 8)),
+          Text(label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 10)),
           Text(
             value,
             style: GoogleFonts.orbitron(
@@ -214,10 +219,8 @@ class GameScreen extends ConsumerWidget {
       ),
     );
   }
-  
 
-
-  Widget _buildMetricBox(BuildContext context, String label, String value) {
+  Widget _buildMetricBox(BuildContext context, String label, String value, {Color? color}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -226,7 +229,7 @@ class GameScreen extends ConsumerWidget {
         Text(
           value,
           style: GoogleFonts.orbitron(
-            color: ChessTheme.trafficOrange,
+            color: color ?? ChessTheme.trafficOrange,
             fontSize: 11,
             fontWeight: FontWeight.bold,
           ),
@@ -240,7 +243,19 @@ class GameScreen extends ConsumerWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final availableSize = min(constraints.maxWidth, constraints.maxHeight - 120);
+        final screenHeight = MediaQuery.of(context).size.height;
+        final shortestSide = MediaQuery.of(context).size.shortestSide;
+        final isTablet = shortestSide >= 600;
+
+        double availableSize;
+        if (isTablet) {
+           final safeVerticalSpace = screenHeight - 550; 
+           availableSize = min(constraints.maxWidth, max(300.0, safeVerticalSpace));
+        } else {
+           // Standard phone sizing
+           availableSize = min(constraints.maxWidth, constraints.maxHeight - 10);
+        }
+        
         return Container(
           width: availableSize,
           height: availableSize,
@@ -267,6 +282,29 @@ class GameScreen extends ConsumerWidget {
                     isWhiteBottom: isWhiteBottom,
                   ),
                 ),
+              if (state.gameMode == GameMode.aiVsAi && state.isAiPaused && !state.isGameOver)
+                 Positioned.fill(
+                   child: Container(
+                     color: Colors.black54,
+                     child: Center(
+                       child: TextButton(
+                         onPressed: () => notifier.startAiGame(),
+                         style: TextButton.styleFrom(
+                           backgroundColor: ChessTheme.trafficOrange,
+                           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                         ),
+                         child: Text(
+                           "START SYSTEM",
+                           style: GoogleFonts.orbitron(
+                             color: Colors.white,
+                             fontWeight: FontWeight.bold,
+                             letterSpacing: 2,
+                           ),
+                         ),
+                       ),
+                     ),
+                   ),
+                 ),
             ],
           ),
         );
@@ -283,7 +321,7 @@ class GameScreen extends ConsumerWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _buildControlButton(context, Icons.undo, 'UNDO', () {}),
+            _buildControlButton(context, Icons.undo, 'UNDO', () => notifier.undo()),
             _buildControlButton(context, Icons.refresh, 'RESET', () => notifier.resetGame()),
             // Log button removed
           ],
@@ -314,6 +352,8 @@ class GameScreen extends ConsumerWidget {
       } else {
         statusText = "CHECKMATE - ${state.winner?.toUpperCase() ?? ''} WINS";
       }
+    } else if (state.isInCheck) {
+      statusText = "CHECK!";
     } else {
       statusText = state.isUserTurn ? "YOUR TURN" : "AI COMPUTING...";
     }

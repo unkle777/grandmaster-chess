@@ -71,8 +71,9 @@ class CustomBoard extends StatelessWidget {
               height: squareSize,
               color: bgColor,
               child: DragTarget<String>(
-                onWillAccept: (data) => !isLocked,
-                onAccept: (sourceSquare) {
+                onWillAcceptWithDetails: (details) => !isLocked,
+                onAcceptWithDetails: (details) {
+                  final sourceSquare = details.data;
                   if (sourceSquare != squareName) {
                     onMove(sourceSquare, squareName);
                   }
@@ -85,7 +86,7 @@ class CustomBoard extends StatelessWidget {
                      return Stack(
                        children: [
                          if (content != null) content,
-                         Container(color: ChessTheme.trafficOrange.withOpacity(0.5)),
+                         Container(color: ChessTheme.trafficOrange.withValues(alpha: 0.5)),
                        ],
                      );
                   }
