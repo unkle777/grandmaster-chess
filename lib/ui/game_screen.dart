@@ -305,6 +305,20 @@ class GameScreen extends ConsumerWidget {
                      ),
                    ),
                  ),
+               // Watchdog: Show Force Restart if AI is hanging
+              if (state.isLongSearch)
+                Positioned(
+                  bottom: 100,
+                  right: 20,
+                  child: FloatingActionButton.extended(
+                    backgroundColor: Colors.red,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text("Force AI Restart"),
+                    onPressed: () {
+                       notifier.forceEngineRestart();
+                    },
+                  ),
+                ),
             ],
           ),
         );

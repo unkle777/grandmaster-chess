@@ -155,6 +155,8 @@ class ChessEngine {
     await sendCommand('go depth $depth');
 
     // Increase timeout to 60s to prevent freezing on deep searches
+    // Stockfish can sometimes hang on complex endgames at high depth.
+    // We allow 60s which is sufficient for Depth 20 on modern mobile CPUs.
     return completer.future.timeout(
       const Duration(seconds: 60),
       onTimeout: () {

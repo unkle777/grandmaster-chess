@@ -18,6 +18,10 @@ final engineProvider = Provider((ref) {
 });
 
 
+/// Manages the game state, AI interactions, and rule enforcement.
+/// 
+/// This provider acts as the central brain of the application, coordinating
+/// between the UI (Flutter), the Logic (chess package), and the Engine (Stockfish).
 enum GameMode {
   humanVsAi,
   aiVsAi,
@@ -59,6 +63,7 @@ class GameState {
   final bool playAsWhite;
   final ThemeMode themeMode;
   final bool isAiPaused;
+  final bool isLongSearch;
 
   // Helper for backward compatibility / UI convenience
   ChessPersona get selectedPersona => blackPersona; 
@@ -88,6 +93,7 @@ class GameState {
     this.playAsWhite = true,
     this.themeMode = ThemeMode.system,
     this.isAiPaused = false,
+    this.isLongSearch = false,
     ChessPersona? whitePersona,
     ChessPersona? blackPersona,
   }) : 
@@ -121,6 +127,7 @@ class GameState {
     required this.playAsWhite,
     required this.themeMode,
     required this.isAiPaused,
+    required this.isLongSearch,
   });
 
   GameState copyWith({
@@ -150,6 +157,7 @@ class GameState {
     bool? playAsWhite,
     ThemeMode? themeMode,
     bool? isAiPaused,
+    bool? isLongSearch,
     // Deprecated argument support
     ChessPersona? selectedPersona,
   }) {
@@ -183,6 +191,7 @@ class GameState {
       playAsWhite: playAsWhite ?? this.playAsWhite,
       themeMode: themeMode ?? this.themeMode,
       isAiPaused: isAiPaused ?? this.isAiPaused,
+      isLongSearch: isLongSearch ?? this.isLongSearch,
     );
   }
 } // End GameState
@@ -202,6 +211,7 @@ class GameNotifier extends StateNotifier<GameState> {
       isUserTurn: true, // Default is White Human vs AI White? No.
       // logic: default playAsWhite=true. So isUserTurn=true.
       playAsWhite: true,
+      isLongSearch: false,
     )
   ) {
     _initEngine();
@@ -375,6 +385,12 @@ class GameNotifier extends StateNotifier<GameState> {
   }
 
   // Unified Move Trigger for AI
+  // This method handles the complex orchestration of:
+  // 1. Determining whose turn it is
+  // 2. Selecting the correct AI Persona (White/Black)
+  // 3. Checking for Signature Openings (Opening Book)
+  // 4. Delegating deep search to Stockfish via FFI
+  // 5. Executing the move and updating State
   void _triggerAiMove() async {
     if (state.isGameOver || _isAiThinking) return;
     
@@ -394,6 +410,15 @@ class GameNotifier extends StateNotifier<GameState> {
       _audioManager.setEra(activePersona.era);
       
       DebugLogger().log('AI', 'Searching depth ${activePersona.depthLimit ?? 15}...');
+
+      // Start Watchdog Timer
+      // If AI thinks for >10 seconds, flag 'isLongSearch' so UI can show a force-quit button
+      Timer(const Duration(seconds: 10), () {
+        if (_isAiThinking && mounted) {
+           DebugLogger().log('WATCHDOG', 'Long search detected (>10s). Enabling user intervention.');
+           state = state.copyWith(isLongSearch: true);
+        }
+      });
 
       // Signature Openings (Move 1 only)
       String? bestMove;
@@ -433,9 +458,13 @@ class GameNotifier extends StateNotifier<GameState> {
              // Extreme fallback: could ask engine for ANY move or just stop.
              // For now, let's stop recursion to prevent stack overflow/freeze loop, but log it loudly.
              _isAiThinking = false; 
+             state = state.copyWith(isLongSearch: false);
              return;
          }
       }
+      
+      // Clear watchdog
+      if (mounted) state = state.copyWith(isLongSearch: false);
       
       DebugLogger().log('AI', 'Best move found: $bestMove');
 
@@ -576,6 +605,7 @@ class GameNotifier extends StateNotifier<GameState> {
       playAsWhite: state.playAsWhite,
       themeMode: state.themeMode, 
       isAiPaused: state.gameMode == GameMode.aiVsAi, // Pause if AI vs AI
+      isLongSearch: false,
     );
     await _engine.startNewGame();
     
@@ -587,6 +617,11 @@ class GameNotifier extends StateNotifier<GameState> {
       // isUserTurn starts as false (from above).
       _triggerAiMove();
     }
+  }
+
+  void forceEngineRestart() {
+    DebugLogger().log('USER', 'Force Engine Restart Triggered');
+    resetGame(keepMode: true);
   }
 
   void _checkGameOver() {
